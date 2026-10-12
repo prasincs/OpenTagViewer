@@ -1,6 +1,6 @@
 > **Mac bridge fork:** This fork adds a Mac-first Android connection mode. A per-user macOS service fetches and decrypts selected AirTag location reports; Android receives a read-only location token over pinned HTTPS. Apple credentials and tag keys stay on the Mac in this mode. See [Mac bridge setup](mac-bridge/README.txt) and [build and test instructions](CONTRIBUTING.md). Actual Apple onboarding and hardware features require separate verification; this mode currently displays locations and does not provide UWB finding or authenticated ringing.
 >
-> Install the persistent Mac service from this checkout with `python3.12 mac-bridge/install-service.py --host <your-Mac-Tailscale-IP>`, then complete `mac-bridge/setup-on-mac.command` locally. Keep the Mac awake and connected to Tailscale. Do not publish the pairing file, account state, or signing keys.
+> Install the persistent Mac service from this checkout with `python3.12 mac-bridge/install-service.py --host <your-Mac-Tailscale-IP>`, then complete `mac-bridge/setup-on-mac.command` locally. For phone setup, open `mac-bridge/pair-phone.command` on the Mac and tap **Scan Mac QR code** on Android; the invitation expires after five minutes and works once. Keep the Mac awake and connected to Tailscale. Do not publish the pairing file, account state, or signing keys.
 
 ![opentagviewer_banner](https://github.com/user-attachments/assets/f26dfbc3-92d7-4af0-950f-e9446c7fb6b9)
 

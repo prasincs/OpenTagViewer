@@ -12,6 +12,8 @@ import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import java.io.ByteArrayOutputStream;
@@ -49,6 +51,31 @@ public class MacBridgeActivity extends AppCompatActivity {
                 connect();
             }catch(Exception e){status.setText(R.string.bridge_invalid);}
         });
+    private final ActivityResultLauncher<ScanOptions> scan=registerForActivityResult(new ScanContract(),result->{
+        if(result.getContents()!=null)acceptInvitation(result.getContents());
+    });
+    void acceptInvitation(String code){
+        final BridgeInvitation invitation;
+        try{invitation=BridgeInvitation.parse(code,System.currentTimeMillis()/1000);}
+        catch(Exception e){status.setText(R.string.bridge_invitation_invalid);return;}
+        if(loading)return;
+        loading=true;int requestGeneration=++generation;handler.removeCallbacks(poll);
+        status.setText(R.string.bridge_loading);
+        worker.submit(()->{
+            try{
+                BridgeClient client=BridgeDependencies.client.get();
+                BridgeConnection paired=client.pair(invitation);
+                BridgeClient.Snapshot snapshot=client.fetch(paired);
+                handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                    loading=false;
+                    try{preferences.save(paired);}catch(Exception e){status.setText(R.string.bridge_invalid);return;}
+                    config=paired;pairing.setText("");showDashboard();render(snapshot);schedule();});
+            }catch(Exception e){handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                loading=false;
+                status.setText(e instanceof BridgeClient.BridgeException&&((BridgeClient.BridgeException)e).failure==BridgeClient.Failure.CERTIFICATE?
+                    R.string.bridge_certificate_error:R.string.bridge_pairing_failed);});}
+        });
+    }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
@@ -57,6 +84,12 @@ public class MacBridgeActivity extends AppCompatActivity {
         if(getSupportActionBar()!=null)getSupportActionBar().hide();
         preferences=new BridgePreferences(this);status=findViewById(R.id.bridge_status);
         pairing=findViewById(R.id.bridge_pairing);items=findViewById(R.id.bridge_items);
+        findViewById(R.id.bridge_scan).setOnClickListener(v->{
+            ScanOptions options=new ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setCaptureActivity(MacPairScannerActivity.class).setOrientationLocked(true)
+                .setBeepEnabled(false).setBarcodeImageEnabled(false).setPrompt(getString(R.string.bridge_scan_prompt));
+            scan.launch(options);
+        });
         findViewById(R.id.bridge_connect).setOnClickListener(v->connect());
         findViewById(R.id.bridge_import).setOnClickListener(v->importFile.launch(new String[]{"application/json","text/plain"}));
         findViewById(R.id.bridge_refresh).setOnClickListener(v->refresh(false));

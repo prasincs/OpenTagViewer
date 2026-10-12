@@ -65,4 +65,48 @@ public class BridgeFlowTest {
         Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_certificate_error))));
         try{assertNull(new BridgePreferences(InstrumentationRegistry.getInstrumentation().getTargetContext()).read());}catch(Exception e){throw new AssertionError(e);}
     }
+    private String invitation(long expiry){
+        String raw="{\"pairing_version\":1,\"endpoint\":\"https://127.0.0.1:8766\",\"certificate_sha256\":\""+"a".repeat(64)+"\",\"secret\":\""+"s".repeat(43)+"\",\"expires_at\":"+expiry+"}";
+        return "homefind-pair:"+java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+    @Test public void qrSetupIsOfferedAndExpiredInvitationNeverCallsNetwork(){
+        onView(withId(R.id.bridge_scan)).check(matches(isDisplayed()));
+        scenario.onActivity(activity->activity.acceptInvitation(invitation(1)));
+        onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_invitation_invalid)));
+        assertEquals(0,calls.get());assertFalse(Python.isStarted());
+    }
+    @Test public void qrExchangeStoresOnlyReturnedCredentialAfterVerifiedFetch() throws Exception{
+        AtomicInteger exchanges=new AtomicInteger();
+        BridgeDependencies.client=()->new BridgeClient(){
+            @Override public BridgeConnection pair(BridgeInvitation i){
+                exchanges.incrementAndGet();
+                try{return BridgeConnection.parse(CODE);}catch(Exception e){throw new AssertionError(e);}
+            }
+            @Override public Snapshot fetch(BridgeConnection c){return new Snapshot("setup_required",List.of());}
+        };
+        scenario.onActivity(activity->activity.acceptInvitation(invitation(System.currentTimeMillis()/1000+300)));
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_setup_required))));
+        assertEquals(1,exchanges.get());
+        BridgeConnection saved=new BridgePreferences(InstrumentationRegistry.getInstrumentation().getTargetContext()).read();
+        assertEquals("b".repeat(43),saved.token);assertNotEquals("s".repeat(43),saved.token);
+        assertFalse(Python.isStarted());
+    }
+    @Test public void qrCertificateFailureNeverStoresConnection(){
+        BridgeDependencies.client=()->new BridgeClient(){
+            @Override public BridgeConnection pair(BridgeInvitation i)throws BridgeException{throw new BridgeException(Failure.CERTIFICATE);}
+        };
+        scenario.onActivity(activity->activity.acceptInvitation(invitation(System.currentTimeMillis()/1000+300)));
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_certificate_error))));
+        try{assertNull(new BridgePreferences(InstrumentationRegistry.getInstrumentation().getTargetContext()).read());}catch(Exception e){throw new AssertionError(e);}
+        assertFalse(Python.isStarted());
+    }
+
+    @Test public void scannerIsPrivateAndSharesTheIsolatedLauncherProcess() throws Exception {
+        android.content.Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.content.pm.PackageManager pm=context.getPackageManager();
+        android.content.pm.ActivityInfo scanner=pm.getActivityInfo(new android.content.ComponentName(context,MacPairScannerActivity.class),0);
+        android.content.pm.ActivityInfo launcher=pm.getActivityInfo(new android.content.ComponentName(context,MacBridgeActivity.class),0);
+        assertFalse(scanner.exported);assertEquals(launcher.processName,scanner.processName);
+    }
+
 }

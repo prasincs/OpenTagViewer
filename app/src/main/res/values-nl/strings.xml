@@ -413,4 +413,9 @@ Als Apple het verzoek simpelweg weigerde, is even wachten en opnieuw proberen he
     <string name="bridge_updated">Bijgewerkt %1$s</string>
     <string name="bridge_mac_error">Je Mac kon de rapporten niet vernieuwen. Controleer de configuratie.</string>
     <string name="bridge_loading">Verbinden met je Mac…</string>
+    <string name="bridge_scan">QR-code van Mac scannen</string>
+    <string name="bridge_scan_help">Open pair-phone.command op je Mac en scan de getoonde code. Deze verloopt na vijf minuten.</string>
+    <string name="bridge_scan_prompt">Scan de verbindingscode op je eigen Mac</string>
+    <string name="bridge_invitation_invalid">Deze code is ongeldig of verlopen. Open pair-phone.command op je Mac voor een nieuwe code.</string>
+    <string name="bridge_pairing_failed">Verbinden is niet voltooid. Controleer Tailscale op beide apparaten, maak een nieuwe QR-code op je Mac en probeer opnieuw.</string>
 </resources>

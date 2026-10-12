@@ -1093,3 +1093,5 @@ The phone's bearer token is scoped to this read-only location API and is
 revocable separately. Keep TLS pinning, hostname/expiry checks, no redirects
 and response/import bounds. No automatic fallback to Apple login on the phone.
 Bridge UI tests require `-PbridgeUiTests=true`; never ship that flag.
+
+QR pairing: create invitations ONLY from the local Mac command, expire them in five minutes, and consume them once under the cross-process lock. Do not put the permanent location token into the QR. `/v1/pair` accepts only a header secret over certificate-pinned HTTPS and exports only the existing bridge connection. The scanner stays private in `${bridgeProcess}`; disable barcode image saving. Never accept certificate pins from discovery responses.

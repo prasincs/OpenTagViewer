@@ -12,6 +12,10 @@
             android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" />
         <LinearLayout android:id="@+id/bridge_setup" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:layout_marginTop="16dp">
+            <com.google.android.material.button.MaterialButton android:id="@+id/bridge_scan"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/bridge_scan" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/bridge_scan_help" android:layout_marginBottom="12dp" />
             <com.google.android.material.button.MaterialButton android:id="@+id/bridge_import"
                 android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/bridge_import" />
             <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content"

@@ -413,4 +413,9 @@
     <string name="bridge_updated">更新时间：%1$s</string>
     <string name="bridge_mac_error">Mac 无法刷新位置报告。请检查设置。</string>
     <string name="bridge_loading">正在连接到 Mac…</string>
+    <string name="bridge_scan">扫描 Mac 二维码</string>
+    <string name="bridge_scan_help">在 Mac 上打开 pair-phone.command，然后扫描显示的二维码。二维码将在五分钟后失效。</string>
+    <string name="bridge_scan_prompt">扫描你自己的 Mac 上显示的配对码</string>
+    <string name="bridge_invitation_invalid">配对码无效或已过期。请在 Mac 上打开 pair-phone.command 获取新码。</string>
+    <string name="bridge_pairing_failed">配对未完成。请检查两台设备上的 Tailscale，然后在 Mac 上生成新二维码并重试。</string>
 </resources>

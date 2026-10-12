@@ -413,4 +413,9 @@
     <string name="bridge_updated">更新時間：%1$s</string>
     <string name="bridge_mac_error">Mac 無法重新整理位置報告。請檢查設定。</string>
     <string name="bridge_loading">正在連線至 Mac…</string>
+    <string name="bridge_scan">掃描 Mac QR 碼</string>
+    <string name="bridge_scan_help">在 Mac 上開啟 pair-phone.command，然後掃描顯示的 QR 碼。QR 碼將在五分鐘後失效。</string>
+    <string name="bridge_scan_prompt">掃描你自己的 Mac 上顯示的配對碼</string>
+    <string name="bridge_invitation_invalid">配對碼無效或已過期。請在 Mac 上開啟 pair-phone.command 取得新碼。</string>
+    <string name="bridge_pairing_failed">配對未完成。請檢查兩台裝置上的 Tailscale，然後在 Mac 上產生新 QR 碼並重試。</string>
 </resources>

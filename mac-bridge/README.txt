@@ -35,7 +35,29 @@ Do not confuse the bridge TLS certificate/private key with your AirTag keys.
 Those transport files and the pairing file are private files (0600 in a 0700
 folder). A pairing file gives access to locations: do not publish it.
 
-On Android:
+First-setup pairing (recommended):
+Open mac-bridge/pair-phone.command on your Mac, then tap Scan Mac QR code
+on Android. Camera permission is needed only for scanning. The Mac displays
+its own address and a single-use QR, which expires after five minutes. Both
+devices need Tailscale connectivity. No connection file transfer is required.
+Successful Apple setup also opens this QR automatically.
+
+Creating the QR locally authorizes access to the selected tags' locations.
+The QR includes endpoint, certificate pin and a random 256-bit temporary secret,
+not the permanent bearer token. The phone verifies certificate/hostname/expiry
+before POST /v1/pair with that secret in its Authorization header. The Mac
+consumes the invitation atomically and returns only the read-only connection
+credential. Wrong guesses do not consume it; attempts are rate limited. Replay,
+expiry and reissued invitations are rejected. An intercepted or photographed
+live QR could authorize the first claimant: show it privately. To cancel an
+unused invitation, delete pairing-invitation.json from the private state folder.
+A new QR invalidates the previous one. After a lost response, generate a new QR.
+The phone stores only the returned connection after a successful location-API
+check. Existing manually imported tokens continue working. This version shares
+the existing location token; revocation still rotates all copies, not one phone.
+The local pairing.html file holds an expiring invitation and stays outside Git.
+
+On Android (manual fallback):
 Open the app, choose Import Mac connection file (or paste its contents), and
 connect. Connection credentials are encrypted with Android Keystore. A pinned
 certificate mismatch is an error, not an invitation to bypass TLS. The first
@@ -52,7 +74,8 @@ Server API:
 GET /v1/items, Authorization: Bearer <read-only bridge token>.
 Schema 1, status ready/setup_required/mac_error, items with opaque ID/name and
 optional latitude/longitude/report timestamp/accuracy. No key/account-export
-route exists. POST is rejected. Responses are no-store. Polls are rate limited.
+route exists. POST /v1/pair is the only setup exchange; other POSTs are rejected.
+Responses are no-store. Polls and pairing attempts are rate limited.
 The phone does not cache report coordinates in its SQLite tag database.
 
 Stop/revoke access:

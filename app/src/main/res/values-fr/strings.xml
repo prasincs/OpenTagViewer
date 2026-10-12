@@ -413,4 +413,9 @@ Si Apple a simplement refusé la requête, il vaut mieux attendre et réessayer.
     <string name="bridge_updated">Mis à jour %1$s</string>
     <string name="bridge_mac_error">Votre Mac ne peut pas actualiser les rapports. Vérifiez sa configuration.</string>
     <string name="bridge_loading">Connexion à votre Mac…</string>
+    <string name="bridge_scan">Scanner le QR code du Mac</string>
+    <string name="bridge_scan_help">Sur votre Mac, ouvrez pair-phone.command et scannez le code affiché. Il expire après cinq minutes.</string>
+    <string name="bridge_scan_prompt">Scannez le code de connexion affiché sur votre propre Mac</string>
+    <string name="bridge_invitation_invalid">Ce code est invalide ou a expiré. Ouvrez pair-phone.command sur votre Mac pour obtenir un nouveau code.</string>
+    <string name="bridge_pairing_failed">La connexion a échoué. Vérifiez Tailscale sur les deux appareils, puis créez un nouveau QR code sur le Mac et réessayez.</string>
 </resources>

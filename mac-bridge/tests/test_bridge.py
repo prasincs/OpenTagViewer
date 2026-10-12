@@ -1,4 +1,6 @@
 import asyncio
+import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib.util
 import json
@@ -7,6 +9,7 @@ import ssl
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -53,13 +56,13 @@ class VaultTests(unittest.TestCase):
             result=asyncio.run(bridge.AppleSource(MemoryKeyStore(Path(tmp))).fetch())
             self.assertEqual(result['status'],'setup_required');self.assertEqual(result['items'],[])
 
-class ApiTests(unittest.TestCase):
+class ApiFixture:
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();directory=Path(self.tmp.name)
         self.pair=bridge.create_pairing(directory,'127.0.0.1',8766)
         self.snapshot=bridge.Snapshot(None)
         self.snapshot.value={'schema':1,'status':'ready','items':[{'id':'test','name':'Synthetic tag','location':None}],'fetched_at':1}
-        self.server=bridge.BridgeServer(('127.0.0.1',0),self.snapshot,hashlib.sha256(self.pair['token'].encode()).hexdigest())
+        self.server=bridge.BridgeServer(('127.0.0.1',0),self.snapshot,hashlib.sha256(self.pair['token'].encode()).hexdigest(),directory)
         tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);tls.minimum_version=ssl.TLSVersion.TLSv1_2
         tls.load_cert_chain(directory/'server.pem',directory/'server-key.pem');self.server.tls_context=tls
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
@@ -70,6 +73,7 @@ class ApiTests(unittest.TestCase):
         req=urllib.request.Request(self.url+path)
         if token is not None:req.add_header('Authorization','Bearer '+token)
         return urllib.request.urlopen(req,context=context or self.context,timeout=5)
+class ApiTests(ApiFixture, unittest.TestCase):
     def test_anonymous_and_wrong_token_requests_are_denied(self):
         for token in [None,'x'*43]:
             with self.assertRaises(urllib.error.HTTPError) as error:self.get(token=token)
@@ -97,5 +101,70 @@ class ApiTests(unittest.TestCase):
         self.get(token=self.pair['token']).close()
         with self.assertRaises(urllib.error.HTTPError) as error:self.get(token=self.pair['token'])
         self.assertEqual(error.exception.code,429)
+
+class PairingTests(ApiFixture, unittest.TestCase):
+    def invitation(self, now=None):
+        code=bridge.make_invitation(Path(self.tmp.name),now=now)
+        payload=code.split(":",1)[1]
+        return json.loads(base64.urlsafe_b64decode(payload+"="*((-len(payload))%4)))
+    def post(self, secret, path="/v1/pair", data=None):
+        req=urllib.request.Request(self.url+path,method="POST",data=data)
+        req.add_header("Authorization","Pairing "+secret)
+        return urllib.request.urlopen(req,context=self.context,timeout=5)
+    def test_local_pairing_page_is_private_and_has_no_long_term_token(self):
+        with patch('subprocess.run') as opened:
+            bridge.show_invitation(Path(self.tmp.name))
+        page=Path(self.tmp.name)/'pairing.html'
+        raw=page.read_text()
+        self.assertIn('<svg',raw)
+        self.assertIn('Content-Security-Policy',raw)
+        self.assertNotIn(self.pair['token'],raw)
+        self.assertEqual(page.stat().st_mode&0o777,0o600)
+        opened.assert_called_once_with(['open',str(page)],check=True)
+    def test_qr_is_temporary_and_never_contains_long_term_token(self):
+        invite=self.invitation()
+        self.assertNotEqual(invite['secret'],self.pair['token'])
+        self.assertNotIn(self.pair['token'],json.dumps(invite))
+        self.assertEqual(invite['certificate_sha256'],self.pair['certificate_sha256'])
+        stored=(Path(self.tmp.name)/'pairing-invitation.json').read_text()
+        self.assertNotIn(invite['secret'],stored)
+    def test_authenticated_pairing_is_single_use_and_uncacheable(self):
+        invite=self.invitation()
+        with self.post(invite['secret']) as response:
+            self.assertEqual(response.headers['Cache-Control'],'no-store')
+            self.assertEqual(json.load(response),self.pair)
+        with self.assertRaises(urllib.error.HTTPError) as err:self.post(invite['secret'])
+        self.assertEqual(err.exception.code,401)
+    def test_wrong_secret_does_not_consume_invitation(self):
+        invite=self.invitation()
+        with self.assertRaises(urllib.error.HTTPError):self.post('x'*43)
+        with self.post(invite['secret']) as response:self.assertEqual(json.load(response),self.pair)
+    def test_expired_invitation_cannot_be_redeemed(self):
+        invite=self.invitation(now=1)
+        with self.assertRaises(urllib.error.HTTPError) as err:self.post(invite['secret'])
+        self.assertEqual(err.exception.code,401)
+    def test_new_invitation_invalidates_previous_one(self):
+        old=self.invitation();new=self.invitation()
+        with self.assertRaises(urllib.error.HTTPError):self.post(old['secret'])
+        self.post(new['secret']).close()
+    def test_simultaneous_claims_release_only_one_token(self):
+        invite=self.invitation()
+        def redeem(_):return bridge.redeem_invitation(Path(self.tmp.name),invite['secret'])
+        with ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(redeem,range(4)))
+        self.assertEqual(sum(result is not None for result in results),1)
+    def test_pairing_rejects_payload_and_query_credentials(self):
+        invite=self.invitation()
+        for path,data,expected in [('/v1/pair',b'{}',400),('/v1/pair?secret='+invite['secret'],None,405)]:
+            with self.assertRaises(urllib.error.HTTPError) as err:self.post(invite['secret'],path,data)
+            self.assertEqual(err.exception.code,expected)
+        self.post(invite['secret']).close()
+    def test_pairing_is_rate_limited_without_consuming_invitation(self):
+        invite=self.invitation()
+        for _ in range(5):
+            with self.assertRaises(urllib.error.HTTPError) as err:self.post('x'*43)
+            self.assertEqual(err.exception.code,401)
+        with self.assertRaises(urllib.error.HTTPError) as err:self.post(invite['secret'])
+        self.assertEqual(err.exception.code,429)
+        self.assertIsNotNone(bridge.redeem_invitation(Path(self.tmp.name),invite['secret']))
 
 if __name__=='__main__':unittest.main()

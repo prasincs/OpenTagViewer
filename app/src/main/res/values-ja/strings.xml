@@ -413,4 +413,9 @@ Appleが要求を拒否しただけなら、少し待ってからもう一度お
     <string name="bridge_updated">更新：%1$s</string>
     <string name="bridge_mac_error">Macで位置情報を更新できませんでした。設定を確認してください。</string>
     <string name="bridge_loading">Macに接続中…</string>
+    <string name="bridge_scan">MacのQRコードをスキャン</string>
+    <string name="bridge_scan_help">Macでpair-phone.commandを開き、表示されたコードをスキャンしてください。5分後に失効します。</string>
+    <string name="bridge_scan_prompt">ご自身のMacに表示された接続コードをスキャンしてください</string>
+    <string name="bridge_invitation_invalid">接続コードが無効または期限切れです。Macでpair-phone.commandを開き、新しいコードを取得してください。</string>
+    <string name="bridge_pairing_failed">接続が完了しませんでした。両方の端末でTailscaleを確認し、Macで新しいQRコードを作成して再試行してください。</string>
 </resources>

@@ -413,4 +413,9 @@
     <string name="bridge_updated">Обновлено %1$s</string>
     <string name="bridge_mac_error">Mac не удалось обновить данные. Проверьте его настройку.</string>
     <string name="bridge_loading">Подключение к Mac…</string>
+    <string name="bridge_scan">Сканировать QR-код Mac</string>
+    <string name="bridge_scan_help">На Mac откройте pair-phone.command и сканируйте показанный код. Он действует пять минут.</string>
+    <string name="bridge_scan_prompt">Сканируйте код подключения на своём Mac</string>
+    <string name="bridge_invitation_invalid">Код недействителен или истёк. Откройте pair-phone.command на Mac для нового кода.</string>
+    <string name="bridge_pairing_failed">Подключение не завершено. Проверьте Tailscale на обоих устройствах, создайте новый QR-код на Mac и повторите попытку.</string>
 </resources>

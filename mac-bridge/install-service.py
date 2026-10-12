@@ -64,7 +64,7 @@ def main():
     subprocess.run(["launchctl", "bootstrap", domain, str(target)], check=True)
     print("Mac bridge installed. Keep this checkout at its current path.")
     print("Complete Apple setup locally with mac-bridge/setup-on-mac.command.")
-    print("Import the private connection.json into Android; never commit that file.")
+    print("Open mac-bridge/pair-phone.command, then tap Scan Mac QR code on Android.")
 
 
 if __name__ == "__main__":

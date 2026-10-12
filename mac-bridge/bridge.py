@@ -5,6 +5,8 @@ import argparse
 import asyncio
 import base64
 import getpass
+import fcntl
+import contextlib
 import hashlib
 import hmac
 import ipaddress
@@ -25,6 +27,73 @@ from pathlib import Path
 DEFAULT_STATE = Path.home() / "Library/Application Support/HomeFindBridge"
 MAX_STATE = 8 * 1024 * 1024
 MAX_ITEMS = 500
+PAIRING_TTL = 300
+
+
+@contextlib.contextmanager
+def pairing_lock(directory: Path):
+    fd = os.open(directory / "pairing.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def make_invitation(directory: Path, now: float | None = None) -> str:
+    connection = json.loads((directory / "connection.json").read_text())
+    secret = secrets.token_urlsafe(32)
+    expires = int((time.time() if now is None else now) + PAIRING_TTL)
+    invitation = {"pairing_version": 1, "endpoint": connection["endpoint"],
+                  "certificate_sha256": connection["certificate_sha256"],
+                  "secret": secret, "expires_at": expires}
+    with pairing_lock(directory):
+        atomic_private(directory / "pairing-invitation.json", json.dumps({
+            "secret_hash": hashlib.sha256(secret.encode()).hexdigest(),
+            "expires_at": expires}).encode())
+    return "homefind-pair:" + base64.urlsafe_b64encode(
+        json.dumps(invitation, separators=(",", ":")).encode()).decode().rstrip("=")
+
+
+def redeem_invitation(directory: Path, secret: str, now: float | None = None) -> dict | None:
+    if len(secret) != 43 or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-" for c in secret):
+        return None
+    with pairing_lock(directory):
+        path = directory / "pairing-invitation.json"
+        if not path.exists():
+            return None
+        state = json.loads(path.read_text())
+        if (time.time() if now is None else now) >= state["expires_at"]:
+            path.unlink()
+            return None
+        if not hmac.compare_digest(state["secret_hash"], hashlib.sha256(secret.encode()).hexdigest()):
+            return None
+        connection = json.loads((directory / "connection.json").read_text())
+        path.unlink()  # Consume under the cross-process lock before returning any credential.
+        return connection
+
+
+def show_invitation(directory: Path) -> None:
+    import qrcode
+    import qrcode.image.svg
+    import subprocess
+    import html
+    import io
+    code = make_invitation(directory)
+    image = qrcode.make(code, image_factory=qrcode.image.svg.SvgPathImage,
+                        error_correction=qrcode.constants.ERROR_CORRECT_M)
+    output = io.BytesIO()
+    image.save(output)
+    svg = output.getvalue().decode().split("?>")[-1]
+    endpoint = json.loads((directory / "connection.json").read_text())["endpoint"]
+    page = ('<html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" '
+            'content="default-src &apos;none&apos;; style-src &apos;unsafe-inline&apos;"><title>Pair Home Find</title>'
+            '<style>body{font:20px system-ui;text-align:center;margin:32px}svg{width:440px;max-width:90vw;height:auto}</style>'
+            '</head><body><h1>Connect your Android phone</h1><p>In OpenTagViewer, tap Scan Mac QR code.</p>'
+            + svg + '<p>' + html.escape(endpoint) + '</p><p>Expires in five minutes. Works once.</p>'
+            '<p>Only scan this code into your own phone. Creating it authorizes location access.</p></body></html>')
+    path = directory / "pairing.html"
+    atomic_private(path, page.encode())
+    subprocess.run(["open", str(path)], check=True)
+    print("Opened the private, single-use pairing QR. It expires after five minutes.")
 
 
 def atomic_private(path: Path, data: bytes) -> None:
@@ -167,11 +236,13 @@ class Snapshot:
 
 class BridgeServer(ThreadingHTTPServer):
     daemon_threads = True
-    def __init__(self, address, snapshot: Snapshot, token_hash: str):
+    def __init__(self, address, snapshot: Snapshot, token_hash: str, directory: Path | None = None):
+        self.directory = directory
         self.snapshot, self.token_hash = snapshot, token_hash
         super().__init__(address, BridgeHandler)
         self.rate_lock = threading.Lock()
         self.requests = {}
+        self.pairing_requests = {}
 
     def get_request(self):
         conn, address = super().get_request()
@@ -223,7 +294,27 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.reply(200, self.server.snapshot.read())
 
     def do_POST(self):
-        self.reply(405, {"error": "read_only"})
+        if self.path != "/v1/pair" or self.server.directory is None:
+            self.reply(405, {"error": "read_only"})
+            return
+        # No payload, query token, redirects or remote setup commands are accepted.
+        if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+            self.reply(400, {"error": "invalid_request"})
+            return
+        host, now = self.client_address[0], time.monotonic()
+        with self.server.rate_lock:
+            previous = self.server.pairing_requests.get(host, [])
+            recent = [t for t in previous if now - t < 60]
+            if len(recent) >= 5:
+                self.reply(429, {"error": "rate_limited"})
+                return
+            if len(self.server.pairing_requests) > 100:
+                self.server.pairing_requests.clear()
+            self.server.pairing_requests[host] = recent + [now]
+        header = self.headers.get("Authorization", "")
+        secret = header.removeprefix("Pairing ") if header.startswith("Pairing ") else ""
+        result = redeem_invitation(self.server.directory, secret)
+        self.reply(200, result) if result is not None else self.reply(401, {"error": "pairing_unavailable"})
 
 
 def create_pairing(directory: Path, host: str, port: int) -> dict:
@@ -315,7 +406,7 @@ async def setup(directory: Path) -> None:
 def main() -> None:
     logging.getLogger().setLevel(logging.CRITICAL)
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["pair", "setup", "serve"])
+    parser.add_argument("command", choices=["pair", "setup", "serve", "invite"])
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--host")
     parser.add_argument("--port", type=int, default=8766)
@@ -327,6 +418,8 @@ def main() -> None:
             parser.error("Existing pairing left untouched. Rotate it deliberately by removing only bridge connection files.")
         create_pairing(args.state, args.host, args.port)
         print("Created private connection file:", args.state / "connection.json")
+    elif args.command == "invite":
+        show_invitation(args.state)
     elif args.command == "setup":
         try:
             asyncio.run(setup(args.state))
@@ -337,7 +430,7 @@ def main() -> None:
         config = json.loads((args.state / "server.json").read_text())
         source = AppleSource(SecureStore(args.state))
         snapshot = Snapshot(source)
-        server = BridgeServer((config["host"], config["port"]), snapshot, config["token_hash"])
+        server = BridgeServer((config["host"], config["port"]), snapshot, config["token_hash"], args.state)
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         tls.minimum_version = ssl.TLSVersion.TLSv1_2
         tls.load_cert_chain(args.state / "server.pem", args.state / "server-key.pem")

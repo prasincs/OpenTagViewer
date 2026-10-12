@@ -56,6 +56,42 @@ public class BridgeClient {
             }
         };
     }
+    /** Exchange a one-time invitation only after verifying its out-of-band certificate pin. */
+    public BridgeConnection pair(BridgeInvitation invitation) throws BridgeException {
+        HttpsURLConnection connection=null;
+        try {
+            if(invitation.expiresAt<=System.currentTimeMillis()/1000)throw new BridgeException(Failure.AUTH);
+            BridgeConnection transport=invitation.transport;
+            SSLContext tls=SSLContext.getInstance("TLS");
+            tls.init(null,new TrustManager[]{trustManager(transport.certificateSha256)},null);
+            connection=(HttpsURLConnection)new URL(transport.endpoint+"/v1/pair").openConnection();
+            connection.setSSLSocketFactory(tls.getSocketFactory());
+            connection.setInstanceFollowRedirects(false);connection.setUseCaches(false);
+            connection.setConnectTimeout(8000);connection.setReadTimeout(10000);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Authorization","Pairing "+transport.token);
+            connection.setRequestProperty("Accept","application/json");
+            int status=connection.getResponseCode();
+            if(status==401||status==403||status==429)throw new BridgeException(Failure.AUTH);
+            if(status!=200)throw new BridgeException(Failure.PROTOCOL);
+            try(InputStream in=connection.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
+                byte[] buffer=new byte[1024];int count;
+                while((count=in.read(buffer))!=-1){if(out.size()+count>8192)throw new BridgeException(Failure.PROTOCOL);out.write(buffer,0,count);}
+                return parsePairingResponse(invitation,new String(out.toByteArray(),StandardCharsets.UTF_8));
+            }
+        }catch(BridgeException e){throw e;}
+        catch(SSLException e){throw new BridgeException(Failure.CERTIFICATE);}
+        catch(Exception e){throw new BridgeException(Failure.CONNECTION);}
+        finally{if(connection!=null)connection.disconnect();}
+    }
+    public static BridgeConnection parsePairingResponse(BridgeInvitation invitation,String raw) throws BridgeException {
+        try{
+            BridgeConnection paired=BridgeConnection.parse(raw);
+            if(!paired.endpoint.equals(invitation.transport.endpoint)||
+                !paired.certificateSha256.equals(invitation.transport.certificateSha256))throw new IllegalArgumentException();
+            return paired;
+        }catch(Exception e){throw new BridgeException(Failure.PROTOCOL);}
+    }
     public Snapshot fetch(BridgeConnection config) throws BridgeException {
         HttpsURLConnection connection=null;
         try {

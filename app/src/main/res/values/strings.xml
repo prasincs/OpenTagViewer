@@ -446,4 +446,9 @@ If Apple simply refused the request, waiting and trying again is worth doing fir
     <string name="bridge_updated">Updated %1$s</string>
     <string name="bridge_mac_error">Your Mac could not refresh the reports. Check its setup.</string>
     <string name="bridge_loading">Connecting to your Mac…</string>
+    <string name="bridge_scan">Scan Mac QR code</string>
+    <string name="bridge_scan_help">On your Mac, open pair-phone.command and scan the code shown. It expires after five minutes.</string>
+    <string name="bridge_scan_prompt">Scan the pairing code displayed on your own Mac</string>
+    <string name="bridge_invitation_invalid">This pairing code is invalid or expired. Open pair-phone.command on your Mac for a new code.</string>
+    <string name="bridge_pairing_failed">Pairing did not finish. Check Tailscale on both devices, then create a new Mac QR code and try again.</string>
 </resources>
