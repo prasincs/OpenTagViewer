@@ -393,4 +393,24 @@ Als Apple het verzoek simpelweg weigerde, is even wachten en opnieuw proberen he
     <string name="anisette_login_crashes_here">Apples aanmeldbibliotheek crasht op deze telefoon, dus doet een server deze stap. Al het andere werkt gewoon. We weten nog niet waarom dit op sommige telefoons gebeurt; een melding met jouw model helpt.</string>
     <string name="anisette_report_crash">Deze telefoon melden</string>
     <string name="anisette_crash_report_body">Apples aanmeldbibliotheek crasht op deze telefoon zodra ze geladen wordt. Op de meeste telefoons werkt ze, en we weten nog niet wat de getroffen toestellen gemeen hebben.\n\nOpenTagViewer gebruikt voor die stap nu een server, dus je kunt gewoon aanmelden en de app normaal gebruiken. Een melding met de gegevens hieronder helpt ons de oorzaak te vinden.</string>
+    <string name="bridge_title">Zoek mijn via je Mac</string>
+    <string name="bridge_about">Apple-inloggegevens en trackersleutels blijven op je Mac. Kaarten gebruiken OpenStreetMap.</string>
+    <string name="bridge_pairing">Mac-verbindingsgegevens</string>
+    <string name="bridge_import">Mac-verbindingsbestand importeren</string>
+    <string name="bridge_connect">Verbinden met Mac</string>
+    <string name="bridge_direct">In plaats daarvan op deze telefoon bij Apple inloggen</string>
+    <string name="bridge_refresh">Vernieuwen</string>
+    <string name="bridge_disconnect">Verbinding verbreken</string>
+    <string name="bridge_invalid">Dit Mac-verbindingsbestand is ongeldig.</string>
+    <string name="bridge_connection_error">Je Mac is niet bereikbaar. Controleer de bridge en je netwerk.</string>
+    <string name="bridge_auth_error">Toegang geweigerd. Importeer een nieuw Mac-verbindingsbestand.</string>
+    <string name="bridge_certificate_error">Het Mac-certificaat komt niet overeen. Controleer je Mac voordat je opnieuw verbindt.</string>
+    <string name="bridge_protocol_error">De Mac gaf een niet-ondersteund antwoord.</string>
+    <string name="bridge_setup_required">Verbonden. Rond de configuratie op je Mac af.</string>
+    <string name="bridge_connected">Verbonden met je Mac</string>
+    <string name="bridge_no_items">Je Mac deelt geen objecten.</string>
+    <string name="bridge_no_location">Nog geen locatierapport</string>
+    <string name="bridge_updated">Bijgewerkt %1$s</string>
+    <string name="bridge_mac_error">Je Mac kon de rapporten niet vernieuwen. Controleer de configuratie.</string>
+    <string name="bridge_loading">Verbinden met je Mac…</string>
 </resources>

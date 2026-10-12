@@ -393,4 +393,24 @@
     <string name="anisette_login_crashes_here">Библиотека входа Apple падает на этом телефоне, поэтому этот шаг выполняет сервер. Всё остальное работает как обычно. Мы пока не знаем, почему это происходит на некоторых телефонах, — отчёт с моделью вашего телефона поможет.</string>
     <string name="anisette_report_crash">Сообщить об этом телефоне</string>
     <string name="anisette_crash_report_body">На этом телефоне библиотека входа Apple падает сразу после загрузки. На большинстве телефонов она работает, и мы пока не знаем, что общего у затронутых устройств.\n\nТеперь OpenTagViewer использует для этого шага сервер, так что вы можете войти и пользоваться приложением как обычно. Отчёт с данными ниже поможет нам найти причину.</string>
+    <string name="bridge_title">Локатор через Mac</string>
+    <string name="bridge_about">Учётные данные Apple и ключи меток остаются на Mac. Карты используют OpenStreetMap.</string>
+    <string name="bridge_pairing">Данные подключения к Mac</string>
+    <string name="bridge_import">Импортировать файл подключения к Mac</string>
+    <string name="bridge_connect">Подключиться к Mac</string>
+    <string name="bridge_direct">Вместо этого войти в Apple на телефоне</string>
+    <string name="bridge_refresh">Обновить</string>
+    <string name="bridge_disconnect">Отключиться</string>
+    <string name="bridge_invalid">Неверный файл подключения к Mac.</string>
+    <string name="bridge_connection_error">Не удалось подключиться к Mac. Проверьте мост и сеть.</string>
+    <string name="bridge_auth_error">Доступ запрещён. Импортируйте новый файл подключения к Mac.</string>
+    <string name="bridge_certificate_error">Сертификат Mac не совпадает. Проверьте Mac перед повторным подключением.</string>
+    <string name="bridge_protocol_error">Mac вернул неподдерживаемый ответ.</string>
+    <string name="bridge_setup_required">Подключено. Завершите настройку на Mac.</string>
+    <string name="bridge_connected">Подключено к Mac</string>
+    <string name="bridge_no_items">Mac не предоставляет доступ ни к одному предмету.</string>
+    <string name="bridge_no_location">Данных о местоположении пока нет</string>
+    <string name="bridge_updated">Обновлено %1$s</string>
+    <string name="bridge_mac_error">Mac не удалось обновить данные. Проверьте его настройку.</string>
+    <string name="bridge_loading">Подключение к Mac…</string>
 </resources>

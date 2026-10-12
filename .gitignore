@@ -56,3 +56,10 @@ scripts/plist_explorer.ipynb
 # The fixtures under app/src/androidTest/assets/ are deliberately tracked and unaffected: they are
 # built by scripts/make_*_fixture.py from invented keys, not from anyone's account.
 python/*.zip
+
+# Local phone APK and verification output.
+/out/
+
+# Local build runtime
+/.toolchain/
+/local-build-env.sh

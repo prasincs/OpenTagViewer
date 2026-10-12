@@ -1069,3 +1069,27 @@ Each of these has already produced a hang that looked like something else:
 - User-facing strings go in `values/strings.xml` with translations in every supported locale.
   **Use `scripts/add_strings.py` rather than editing the files by hand** — see below.
 - Prefer fixing the root cause to adding a workaround.
+
+## Local Android 37 phone installation
+
+The tested phone uses 4 KB pages but Android 37 reports LOAD/RELRO compatibility
+checks for debuggable apps. `-PhomeInstall=true` disables debugger access in
+the debug variant while retaining its application ID and signing key. This is
+not a 16 KB compatibility fix: prebuilt Chaquopy and other native libraries
+still need auditing/updating. Check LOAD alignment, RELRO end alignment, and
+APK zip alignment independently before claiming 16 KB support. Do not uninstall
+the existing app to replace its build: its account state and tag data must survive.
+
+## Mac bridge isolation
+
+The Mac bridge launcher runs in `:macbridge` and must return from Application
+startup before Python, Anisette or map SDK initialization. Never route this
+mode through the legacy Apple-auth repository, accessory database or broad
+keychain membership flow. The Mac API exports an allowlisted location DTO;
+never expose FindMy `LocationReport.to_json`, which can carry private keys.
+Mac setup persists only selected accessory keys and a password-free Apple
+session, AES-GCM encrypted with a wrapping key in the Mac login Keychain.
+The phone's bearer token is scoped to this read-only location API and is
+revocable separately. Keep TLS pinning, hostname/expiry checks, no redirects
+and response/import bounds. No automatic fallback to Apple login on the phone.
+Bridge UI tests require `-PbridgeUiTests=true`; never ship that flag.

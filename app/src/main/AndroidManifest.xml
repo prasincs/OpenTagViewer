@@ -166,14 +166,19 @@
             android:name=".FetchFromICloudActivity"
             android:exported="false"
             android:theme="@style/Theme.OpenTagViewer.GenericGreyishActivity" />
-        <activity
-            android:name=".AppleLoginActivity"
-            android:exported="true"
+        <activity android:name=".bridge.MacBridgeActivity"
+            android:exported="true" android:process="${bridgeProcess}"
             android:theme="@style/Theme.OpenTagViewer.GenericGreyishActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".AppleLoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.OpenTagViewer.GenericGreyishActivity">
+
         </activity>
         <activity
             android:name=".InformationActivity"

@@ -393,4 +393,24 @@ Wenn Apple die Anfrage lediglich abgelehnt hat, lohnt es sich, zu warten und es 
     <string name="anisette_login_crashes_here">Apples Anmeldebibliothek stürzt auf diesem Handy ab, daher übernimmt ein Server diesen Schritt. Alles andere funktioniert normal. Warum das auf manchen Handys passiert, wissen wir noch nicht – ein Bericht mit deinem Modell hilft.</string>
     <string name="anisette_report_crash">Dieses Handy melden</string>
     <string name="anisette_crash_report_body">Apples Anmeldebibliothek stürzt auf diesem Handy ab, sobald sie geladen wird. Auf den meisten Handys funktioniert sie, und wir wissen noch nicht, was die betroffenen gemeinsam haben.\n\nOpenTagViewer nutzt für diesen Schritt jetzt einen Server, du kannst dich also anmelden und die App normal verwenden. Ein Bericht mit den Angaben unten hilft uns, die Ursache zu finden.</string>
+    <string name="bridge_title">Wo ist? über deinen Mac</string>
+    <string name="bridge_about">Apple-Zugangsdaten und Tracker-Schlüssel bleiben auf deinem Mac. Karten verwenden OpenStreetMap.</string>
+    <string name="bridge_pairing">Mac-Verbindungsdaten</string>
+    <string name="bridge_import">Mac-Verbindungsdatei importieren</string>
+    <string name="bridge_connect">Mit Mac verbinden</string>
+    <string name="bridge_direct">Stattdessen auf diesem Handy bei Apple anmelden</string>
+    <string name="bridge_refresh">Aktualisieren</string>
+    <string name="bridge_disconnect">Trennen</string>
+    <string name="bridge_invalid">Diese Mac-Verbindungsdatei ist ungültig.</string>
+    <string name="bridge_connection_error">Dein Mac ist nicht erreichbar. Prüfe die Bridge und dein Netzwerk.</string>
+    <string name="bridge_auth_error">Zugriff verweigert. Importiere eine neue Mac-Verbindungsdatei.</string>
+    <string name="bridge_certificate_error">Das Mac-Zertifikat stimmt nicht überein. Prüfe deinen Mac vor dem erneuten Verbinden.</string>
+    <string name="bridge_protocol_error">Der Mac hat eine nicht unterstützte Antwort geliefert.</string>
+    <string name="bridge_setup_required">Verbunden. Schließe die Einrichtung auf deinem Mac ab.</string>
+    <string name="bridge_connected">Mit deinem Mac verbunden</string>
+    <string name="bridge_no_items">Dein Mac gibt keine Objekte frei.</string>
+    <string name="bridge_no_location">Noch kein Standortbericht</string>
+    <string name="bridge_updated">Aktualisiert: %1$s</string>
+    <string name="bridge_mac_error">Dein Mac konnte die Berichte nicht aktualisieren. Prüfe die Einrichtung.</string>
+    <string name="bridge_loading">Verbindung mit deinem Mac wird hergestellt…</string>
 </resources>

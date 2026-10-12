@@ -393,4 +393,24 @@ Appleが要求を拒否しただけなら、少し待ってからもう一度お
     <string name="anisette_login_crashes_here">Apple のサインイン用ライブラリがこの端末ではクラッシュするため、この手順はサーバーが代わりに行います。その他の機能は通常どおり使えます。一部の端末で起きる原因はまだ分かっていません。お使いの機種を添えて報告していただけると助かります。</string>
     <string name="anisette_report_crash">この端末を報告</string>
     <string name="anisette_crash_report_body">この端末では、Apple のサインイン用ライブラリが読み込み直後にクラッシュします。ほとんどの端末では問題なく動作しており、影響を受ける端末の共通点はまだ分かっていません。\n\nOpenTagViewer はこの手順にサーバーを使うようになったため、サインインもアプリの利用も通常どおりできます。下の情報を添えて報告していただくと、原因の特定に役立ちます。</string>
+    <string name="bridge_title">Mac経由で探す</string>
+    <string name="bridge_about">Appleの認証情報とタグの鍵はMacに保存されます。地図にはOpenStreetMapを使用します。</string>
+    <string name="bridge_pairing">Macの接続情報</string>
+    <string name="bridge_import">Macの接続ファイルを読み込む</string>
+    <string name="bridge_connect">Macに接続</string>
+    <string name="bridge_direct">代わりにこの電話でAppleにサインイン</string>
+    <string name="bridge_refresh">更新</string>
+    <string name="bridge_disconnect">切断</string>
+    <string name="bridge_invalid">Macの接続ファイルが無効です。</string>
+    <string name="bridge_connection_error">Macに接続できません。ブリッジとネットワークを確認してください。</string>
+    <string name="bridge_auth_error">アクセスが拒否されました。新しいMac接続ファイルを読み込んでください。</string>
+    <string name="bridge_certificate_error">Macの証明書が一致しません。再接続する前にMacを確認してください。</string>
+    <string name="bridge_protocol_error">Macからの応答はサポートされていません。</string>
+    <string name="bridge_setup_required">接続しました。Macで設定を完了してください。</string>
+    <string name="bridge_connected">Macに接続済み</string>
+    <string name="bridge_no_items">Macから共有されている持ち物はありません。</string>
+    <string name="bridge_no_location">位置情報はまだありません</string>
+    <string name="bridge_updated">更新：%1$s</string>
+    <string name="bridge_mac_error">Macで位置情報を更新できませんでした。設定を確認してください。</string>
+    <string name="bridge_loading">Macに接続中…</string>
 </resources>

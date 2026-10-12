@@ -20,7 +20,7 @@
         -->
         <activity
             android:name="dev.wander.android.opentagviewer.ui.TestHostActivity"
-            android:exported="false"
+            android:exported="false" android:enabled="${testComponentsEnabled}"
             android:theme="@style/Theme.OpenTagViewer" />
 
         <!--
@@ -44,7 +44,7 @@
         -->
         <activity
             android:name="dev.wander.android.opentagviewer.ui.maps.SomewhereToNavigateTo"
-            android:exported="true"
+            android:exported="true" android:enabled="${testComponentsEnabled}"
             android:theme="@style/Theme.OpenTagViewer">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

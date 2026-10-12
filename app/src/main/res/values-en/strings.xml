@@ -393,4 +393,24 @@ If Apple simply refused the request, waiting and trying again is worth doing fir
     <string name="anisette_login_crashes_here">Apple\'s sign-in library crashes on this phone, so a server does this step instead. Everything else works normally. We don\'t know why it happens on some phones yet, and a report naming yours helps.</string>
     <string name="anisette_report_crash">Report this phone</string>
     <string name="anisette_crash_report_body">Apple\'s sign-in library crashes as soon as it loads on this phone. It works on most phones, and we do not know yet what the affected ones have in common.\n\nOpenTagViewer now uses a server for that step, so you can sign in and use the app normally. A report with the details below is what helps us find the cause.</string>
+    <string name="bridge_title">Find My through your Mac</string>
+    <string name="bridge_about">Apple credentials and tag keys stay on your Mac. Maps use OpenStreetMap.</string>
+    <string name="bridge_pairing">Mac connection details</string>
+    <string name="bridge_import">Import Mac connection file</string>
+    <string name="bridge_connect">Connect to Mac</string>
+    <string name="bridge_direct">Use Apple sign-in on this phone instead</string>
+    <string name="bridge_refresh">Refresh</string>
+    <string name="bridge_disconnect">Disconnect</string>
+    <string name="bridge_invalid">This Mac connection file is invalid.</string>
+    <string name="bridge_connection_error">Cannot reach your Mac. Check the bridge and your network.</string>
+    <string name="bridge_auth_error">Access was denied. Import a new Mac connection file.</string>
+    <string name="bridge_certificate_error">The Mac certificate does not match. Check your Mac before reconnecting.</string>
+    <string name="bridge_protocol_error">The Mac returned an unsupported response.</string>
+    <string name="bridge_setup_required">Connected. Finish setup on your Mac.</string>
+    <string name="bridge_connected">Connected to your Mac</string>
+    <string name="bridge_no_items">No items are shared by your Mac.</string>
+    <string name="bridge_no_location">No location report yet</string>
+    <string name="bridge_updated">Updated %1$s</string>
+    <string name="bridge_mac_error">Your Mac could not refresh the reports. Check its setup.</string>
+    <string name="bridge_loading">Connecting to your Mac…</string>
 </resources>

@@ -393,4 +393,24 @@
     <string name="anisette_login_crashes_here">Apple 的登录库在这部手机上会崩溃，因此这一步改由服务器完成。其他功能一切正常。我们还不知道为什么会在部分手机上发生，附上你的机型报告会有帮助。</string>
     <string name="anisette_report_crash">报告这部手机</string>
     <string name="anisette_crash_report_body">Apple 的登录库在这部手机上一加载就会崩溃。它在大多数手机上都能正常运行，我们还不知道受影响的手机有什么共同点。\n\nOpenTagViewer 现在改用服务器完成这一步，因此你可以正常登录和使用应用。附上下方信息的报告能帮助我们找到原因。</string>
+    <string name="bridge_title">通过 Mac 使用查找</string>
+    <string name="bridge_about">Apple 登录信息和标签密钥保留在 Mac 上。地图使用 OpenStreetMap。</string>
+    <string name="bridge_pairing">Mac 连接信息</string>
+    <string name="bridge_import">导入 Mac 连接文件</string>
+    <string name="bridge_connect">连接到 Mac</string>
+    <string name="bridge_direct">改为在此手机上登录 Apple</string>
+    <string name="bridge_refresh">刷新</string>
+    <string name="bridge_disconnect">断开连接</string>
+    <string name="bridge_invalid">此 Mac 连接文件无效。</string>
+    <string name="bridge_connection_error">无法连接到 Mac。请检查桥接服务和网络。</string>
+    <string name="bridge_auth_error">访问被拒绝。请导入新的 Mac 连接文件。</string>
+    <string name="bridge_certificate_error">Mac 证书不匹配。重新连接前请检查 Mac。</string>
+    <string name="bridge_protocol_error">Mac 返回了不支持的响应。</string>
+    <string name="bridge_setup_required">已连接。请在 Mac 上完成设置。</string>
+    <string name="bridge_connected">已连接到 Mac</string>
+    <string name="bridge_no_items">Mac 未共享任何物品。</string>
+    <string name="bridge_no_location">暂无位置报告</string>
+    <string name="bridge_updated">更新时间：%1$s</string>
+    <string name="bridge_mac_error">Mac 无法刷新位置报告。请检查设置。</string>
+    <string name="bridge_loading">正在连接到 Mac…</string>
 </resources>

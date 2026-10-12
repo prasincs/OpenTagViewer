@@ -9,6 +9,20 @@ contributors.
 
 ## Setting up
 
+For this local Android build, `bash scripts/build_home_findmy.sh` produces
+`out/home-findmy.apk` and its checksum after compiling and running JVM tests.
+Set `JAVA_HOME`, `ANDROID_HOME`, and optionally `FINDMY_PYTHON` to a Python 3.12
+interpreter. The SDK needs platform 35, build tools 35.0.0, NDK 27.0.12077973,
+and CMake 3.22.1. This builds the upstream debug application for arm64 phones;
+it keeps the upstream application identity and launcher label. The helper passes
+`-PhomeInstall=true` to disable debugger access while retaining the debug
+package and signing key for upgrades. This avoids Android 37's debug-only
+native compatibility dialog on the tested 4 KB phone; it does not certify
+16 KB support for bundled third-party libraries. Ordinary debug builds remain
+debuggable. Select
+OpenStreetMap during setup to use maps without a Google Maps API key.
+Python bridge tests and instrumented device tests remain separate checks.
+
 ### What you need
 
 | | Why |
@@ -1017,3 +1031,36 @@ release is a bad time to discover one has expired.
   exported schema JSON — see rule 1 in [AGENTS.md](./AGENTS.md)
 - Say what you verified and what you could not. A change needing a real Apple account, a
   Mac, or hardware you do not have is fine; claiming coverage you do not have is not
+
+
+## Mac bridge mode
+
+The launcher opens `bridge.MacBridgeActivity` in the `:macbridge` process. That
+process returns before Python, Anisette, Google Maps or AMap startup. It reads
+only an AES-GCM encrypted bridge credential; it does not touch the Apple account
+or tag database. The legacy direct Apple sign-in option still opens the original
+main process. Switching modes does not delete data from earlier direct use.
+
+`mac-bridge/bridge.py` serves selected item names/location reports over pinned
+HTTPS, bound to a specific Mac IP. The phone imports the private connection file;
+it receives neither Apple session tokens nor tag keys. See `mac-bridge/README.txt`
+for Mac setup, launch-agent operation and revocation. `setup-on-mac.command` is
+the interactive entry point: Apple inputs stay in a local terminal.
+
+Bridge checks:
+
+| Check | Command |
+| --- | --- |
+| Mac API/TLS/vault tests | `.toolchain/bridge-venv/bin/python -m unittest discover -s mac-bridge/tests -v` |
+| JVM protocol/pin tests | `./gradlew :app:testDebugUnitTest --tests '*Bridge*Test'` |
+| Connection UI and light/dark renders | `./gradlew -PbridgeUiTests=true -Pandroid.testInstrumentationRunnerArguments.class=dev.wander.android.opentagviewer.bridge.BridgeFlowTest,dev.wander.android.opentagviewer.bridge.BridgeLayoutTest :app:testEmulatorDebugAndroidTest` |
+
+`bridgeUiTests` puts the screen in the managed test process and prevents native
+Apple startup, so fakes and UI tests can exercise the mode safely. Ordinary
+instrumented runs skip BridgeFlowTest unless this property is present. Never use
+it in a phone build. `scripts/build_home_findmy.sh` creates the non-debuggable
+phone APK; its Mac screen remains isolated and debug-only test components are
+disabled. The UI error test was checked with a deliberate wrong-message change:
+it failed, the source was restored, and the positive tests were rerun.
+
+Persistent Mac service: `python3.12 mac-bridge/install-service.py --host <Mac-Tailscale-IP>` installs the pinned runtime and per-user LaunchAgent. See `mac-bridge/README.txt`. The checkout may be a fork; no account state or pairing credentials belong in Git.

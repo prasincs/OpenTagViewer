@@ -1,0 +1,6 @@
+FindMy @ git+https://github.com/parawanderer/FindMy.py@7969003ca785658369b650f75d9e7ca519566bf6
+cryptography==50.0.2
+aiohttp==3.14.5
+keyring==25.6.0
+
+PyYAML==6.0.2

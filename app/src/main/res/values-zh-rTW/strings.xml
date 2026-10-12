@@ -393,4 +393,24 @@
     <string name="anisette_login_crashes_here">Apple 的登入函式庫在這支手機上會當機，因此這一步改由伺服器完成。其他功能一切正常。我們還不知道為什麼會在部分手機上發生，附上你的機型回報會有幫助。</string>
     <string name="anisette_report_crash">回報這支手機</string>
     <string name="anisette_crash_report_body">Apple 的登入函式庫在這支手機上一載入就會當機。它在大多數手機上都能正常運作，我們還不知道受影響的手機有什麼共通點。\n\nOpenTagViewer 現在改用伺服器完成這一步，因此你可以正常登入和使用 App。附上下方資訊的回報能幫助我們找到原因。</string>
+    <string name="bridge_title">透過 Mac 使用尋找</string>
+    <string name="bridge_about">Apple 登入資訊和標籤密鑰保留在 Mac 上。地圖使用 OpenStreetMap。</string>
+    <string name="bridge_pairing">Mac 連線資訊</string>
+    <string name="bridge_import">匯入 Mac 連線檔案</string>
+    <string name="bridge_connect">連線至 Mac</string>
+    <string name="bridge_direct">改為在此手機上登入 Apple</string>
+    <string name="bridge_refresh">重新整理</string>
+    <string name="bridge_disconnect">中斷連線</string>
+    <string name="bridge_invalid">此 Mac 連線檔案無效。</string>
+    <string name="bridge_connection_error">無法連線至 Mac。請檢查橋接服務和網路。</string>
+    <string name="bridge_auth_error">存取遭拒。請匯入新的 Mac 連線檔案。</string>
+    <string name="bridge_certificate_error">Mac 憑證不符。重新連線前請檢查 Mac。</string>
+    <string name="bridge_protocol_error">Mac 傳回不支援的回應。</string>
+    <string name="bridge_setup_required">已連線。請在 Mac 上完成設定。</string>
+    <string name="bridge_connected">已連線至 Mac</string>
+    <string name="bridge_no_items">Mac 未共享任何物品。</string>
+    <string name="bridge_no_location">尚無位置報告</string>
+    <string name="bridge_updated">更新時間：%1$s</string>
+    <string name="bridge_mac_error">Mac 無法重新整理位置報告。請檢查設定。</string>
+    <string name="bridge_loading">正在連線至 Mac…</string>
 </resources>

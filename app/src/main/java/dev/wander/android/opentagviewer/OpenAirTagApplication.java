@@ -33,7 +33,8 @@ public class OpenAirTagApplication extends Application {
         // like any other process of the app, and it exists to load one library and possibly die.
         // Starting Python there would unpack Chaquopy's assets from two processes at once, and
         // resuming the background scan would start a second scanner. See AppleLibraryProbeService.
-        if (isTheAppleLibraryProbe()) {
+        if (isTheAppleLibraryProbe() || this.processName().endsWith(":macbridge")
+                || BuildConfig.BRIDGE_UI_TESTS) {
             return;
         }
 

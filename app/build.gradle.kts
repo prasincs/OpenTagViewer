@@ -96,13 +96,15 @@ android {
         applicationId = "dev.wander.android.opentagviewer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.1.2"
+        versionCode = 7
+        versionName = "1.1.2-mac.1"
 
         // Null unless a build type sets it - see the debug block. A release is built from a tag
         // and its versionName is exactly right, so there is nothing a commit would add; the
         // field exists in both variants so code reading it compiles in both.
         buildConfigField("String", "BUILD_COMMIT", "null")
+        buildConfigField("boolean", "BRIDGE_UI_TESTS", "false")
+        manifestPlaceholders["bridgeProcess"] = ":macbridge"
 
         // Grants the app's runtime permissions before the first test - see the class, which
         // explains why an ungranted one hangs the suite rather than failing a test.
@@ -144,8 +146,9 @@ android {
                 // Align our own libraries to 16 KB pages, which Android 15+ devices with
                 // 16 KB page sizes require. This is explicit because r27 does NOT do it by
                 // default - measured, not assumed: an r27 build without this flag produces
-                // PT_LOAD segments at 0x1000. r28 makes it the default and this can go.
-                arguments += "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                // PT_LOAD segments at 0x1000. common-page-size also aligns the RELRO end;
+                // max-page-size alone leaves RELRO at 4 KB boundaries.
+                arguments += "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
             }
         }
 
@@ -241,7 +244,10 @@ android {
             )
         }
         debug {
-            isDebuggable = true
+            // Local phone installs need the same package and signing key for upgrades,
+            // but do not need debugger access. Android 37 shows native-page compatibility
+            // diagnostics for debuggable apps even on this phone's 4 KB runtime.
+            isDebuggable = !providers.gradleProperty("homeInstall").orNull.toBoolean()
 
             // Install debug builds alongside a release install rather than colliding with
             // it. Without this, both share the applicationId but are signed with different
@@ -255,6 +261,12 @@ android {
             // SHA-1) to the key's restrictions if you need maps to render in debug builds.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            val bridgeUiTests = providers.gradleProperty("bridgeUiTests").orNull.toBoolean()
+            buildConfigField("boolean", "BRIDGE_UI_TESTS", bridgeUiTests.toString())
+            manifestPlaceholders["bridgeProcess"] = if (bridgeUiTests)
+                "dev.wander.android.opentagviewer.debug" else ":macbridge"
+            manifestPlaceholders["testComponentsEnabled"] =
+                (!providers.gradleProperty("homeInstall").orNull.toBoolean()).toString()
 
             // **`-debug` says this is not a release; it does not say which build.**
             // `versionName` is a committed literal, so every commit after 1.0.5 reports 1.0.5

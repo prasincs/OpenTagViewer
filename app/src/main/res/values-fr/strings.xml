@@ -393,4 +393,24 @@ Si Apple a simplement refusé la requête, il vaut mieux attendre et réessayer.
     <string name="anisette_login_crashes_here">La bibliothèque de connexion d\'Apple plante sur ce téléphone, un serveur se charge donc de cette étape. Tout le reste fonctionne normalement. Nous ne savons pas encore pourquoi cela arrive sur certains téléphones : un rapport indiquant le vôtre nous aide.</string>
     <string name="anisette_report_crash">Signaler ce téléphone</string>
     <string name="anisette_crash_report_body">La bibliothèque de connexion d\'Apple plante dès son chargement sur ce téléphone. Elle fonctionne sur la plupart des téléphones, et nous ne savons pas encore ce que les appareils concernés ont en commun.\n\nOpenTagViewer utilise désormais un serveur pour cette étape : vous pouvez vous connecter et utiliser l\'app normalement. Un rapport avec les informations ci-dessous nous aide à trouver la cause.</string>
+    <string name="bridge_title">Localiser via votre Mac</string>
+    <string name="bridge_about">Les identifiants Apple et les clés des balises restent sur votre Mac. Les cartes utilisent OpenStreetMap.</string>
+    <string name="bridge_pairing">Détails de connexion au Mac</string>
+    <string name="bridge_import">Importer le fichier de connexion au Mac</string>
+    <string name="bridge_connect">Se connecter au Mac</string>
+    <string name="bridge_direct">Utiliser plutôt la connexion Apple sur ce téléphone</string>
+    <string name="bridge_refresh">Actualiser</string>
+    <string name="bridge_disconnect">Déconnecter</string>
+    <string name="bridge_invalid">Ce fichier de connexion au Mac est invalide.</string>
+    <string name="bridge_connection_error">Impossible de joindre votre Mac. Vérifiez le relais et votre réseau.</string>
+    <string name="bridge_auth_error">Accès refusé. Importez un nouveau fichier de connexion au Mac.</string>
+    <string name="bridge_certificate_error">Le certificat du Mac ne correspond pas. Vérifiez votre Mac avant de vous reconnecter.</string>
+    <string name="bridge_protocol_error">Le Mac a renvoyé une réponse non prise en charge.</string>
+    <string name="bridge_setup_required">Connecté. Terminez la configuration sur votre Mac.</string>
+    <string name="bridge_connected">Connecté à votre Mac</string>
+    <string name="bridge_no_items">Votre Mac ne partage aucun objet.</string>
+    <string name="bridge_no_location">Aucun rapport de position pour le moment</string>
+    <string name="bridge_updated">Mis à jour %1$s</string>
+    <string name="bridge_mac_error">Votre Mac ne peut pas actualiser les rapports. Vérifiez sa configuration.</string>
+    <string name="bridge_loading">Connexion à votre Mac…</string>
 </resources>
