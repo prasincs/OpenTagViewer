@@ -418,4 +418,12 @@ Si Apple a simplement refusé la requête, il vaut mieux attendre et réessayer.
     <string name="bridge_scan_prompt">Scannez le code de connexion affiché sur votre propre Mac</string>
     <string name="bridge_invitation_invalid">Ce code est invalide ou a expiré. Ouvrez pair-phone.command sur votre Mac pour obtenir un nouveau code.</string>
     <string name="bridge_pairing_failed">La connexion a échoué. Vérifiez Tailscale sur les deux appareils, puis créez un nouveau QR code sur le Mac et réessayez.</string>
+    <string name="vault_enroll">Activer le coffre protégé par Android</string>
+    <string name="vault_unlock">Déverrouiller le coffre du Mac</string>
+    <string name="vault_lock">Verrouiller le coffre du Mac</string>
+    <string name="vault_enrollment_required">Activez la clé matérielle de ce téléphone, puis approuvez son empreinte dans la fenêtre du Mac.</string>
+    <string name="vault_approval_pending">Comparez cette empreinte avec celle affichée sur le Mac et approuvez-la. Puis déverrouillez le coffre du Mac.</string>
+    <string name="vault_locked">Le coffre du Mac est verrouillé. Authentifiez-vous sur ce téléphone pour le déverrouiller pendant 30 minutes.</string>
+    <string name="vault_auth_title">Autoriser le déverrouillage du coffre</string>
+    <string name="vault_error">La demande a échoué. Vérifiez la fenêtre du Mac. Une clé matérielle, Android 12 ou ultérieur et un verrouillage du téléphone sont requis.</string>
 </resources>

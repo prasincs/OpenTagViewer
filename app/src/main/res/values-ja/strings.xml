@@ -418,4 +418,12 @@ Appleが要求を拒否しただけなら、少し待ってからもう一度お
     <string name="bridge_scan_prompt">ご自身のMacに表示された接続コードをスキャンしてください</string>
     <string name="bridge_invitation_invalid">接続コードが無効または期限切れです。Macでpair-phone.commandを開き、新しいコードを取得してください。</string>
     <string name="bridge_pairing_failed">接続が完了しませんでした。両方の端末でTailscaleを確認し、Macで新しいQRコードを作成して再試行してください。</string>
+    <string name="vault_enroll">Android承認付き保管庫を有効化</string>
+    <string name="vault_unlock">Macの保管庫を解除</string>
+    <string name="vault_lock">Macの保管庫をロック</string>
+    <string name="vault_enrollment_required">この端末のハードウェア鍵を有効にし、Macのウィンドウで鍵の指紋を承認してください。</string>
+    <string name="vault_approval_pending">Macに表示された鍵の指紋と比較して承認し、Macの保管庫を解除してください。</string>
+    <string name="vault_locked">Macの保管庫はロック中です。この端末で認証すると30分間解除されます。</string>
+    <string name="vault_auth_title">Macの保管庫の解除を承認</string>
+    <string name="vault_error">保管庫の操作に失敗しました。Macのウィンドウを確認してください。ハードウェア鍵、Android 12以降、画面ロックが必要です。</string>
 </resources>

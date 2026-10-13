@@ -27,6 +27,9 @@ from pathlib import Path
 DEFAULT_STATE = Path.home() / "Library/Application Support/HomeFindBridge"
 MAX_STATE = 8 * 1024 * 1024
 MAX_ITEMS = 500
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from vault import VaultStore, VaultLocked, LegacyVault, LocalVaultLease, android_public, b64, unb64
+
 PAIRING_TTL = 300
 
 
@@ -272,10 +275,22 @@ class LocalPairingHandler(BaseHTTPRequestHandler):
             self.reply(401, b'{"error":"unavailable"}')
             return
         apple_status = apple_setup_status(self.server.directory, self.server.snapshot)
+        gate = getattr(getattr(self.server.snapshot, "source", None), "store", None)
+        if isinstance(gate, VaultStore) and gate.status() != "unlocked":
+            apple_status = "vault_enrollment_required" if gate.status() == "unenrolled" else "vault_locked"
         if apple_status == "setup_failed" and state["status"] in ("waiting", "confirming"):
             state = pairing_flow_status(self.server.directory, token, cancel=True)
         state["qr_svg"] = self.server.svg(state.pop("code"))
         state["apple_status"] = apple_status
+        store = getattr(getattr(self.server.snapshot, "source", None), "store", None)
+        if isinstance(store, VaultStore):
+            info = {"status": store.status()}
+            pending = self.server.directory / "pending-android-key.json"
+            if info["status"] == "unenrolled" and pending.exists():
+                info.update(status="approval_needed", fingerprint=json.loads(pending.read_text())["fingerprint"])
+            state["vault"] = info
+            if info["status"] in ("unenrolled", "approval_needed", "locked"):
+                state["apple_status"] = "vault_enrollment_required" if info["status"] != "locked" else "vault_locked"
         self.reply(200, json.dumps(state).encode())
 
     def do_GET(self):
@@ -297,6 +312,23 @@ class LocalPairingHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.valid_origin():
             self.reply(403, b'{}')
+        elif self.path == "/v1/vault/approve":
+            header = self.headers.get("Authorization", "")
+            token = header.removeprefix("Setup ") if header.startswith("Setup ") else ""
+            if pairing_flow_status(self.server.directory, token) is None:
+                self.reply(401, b'{}'); return
+            store = getattr(getattr(self.server.snapshot, "source", None), "store", None)
+            try:
+                if not isinstance(store, VaultStore): raise ValueError()
+                if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"): raise ValueError()
+                path = self.server.directory / "pending-android-key.json"
+                pending = json.loads(path.read_text())
+                if not hmac.compare_digest(pending["fingerprint"], self.headers.get("X-Vault-Fingerprint", "")): raise ValueError()
+                store.enable(unb64(pending["public_key"]))
+                path.unlink()
+                (self.server.directory / "apple-setup-status.json").unlink(missing_ok=True)
+                self.reply(200, b'{"status":"enrolled"}')
+            except Exception: self.reply(409, b'{"error":"approval_rejected"}')
         elif self.path != "/v1/pairing-cancel":
             self.reply(404, b'{}')
         elif self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
@@ -318,7 +350,7 @@ def atomic_private(path: Path, data: bytes) -> None:
     os.chmod(path, 0o600)
 
 
-class SecureStore:
+class LegacySecureStore:
     """An encrypted file whose wrapping key is held in the login Keychain, never on disk."""
     def __init__(self, directory: Path):
         self.directory = directory
@@ -383,10 +415,15 @@ def public_item(accessory, report, label: str | None = None) -> dict:
 
 
 class AppleSource:
-    def __init__(self, store: SecureStore):
+    def __init__(self, store: VaultStore):
         self.store = store
 
     async def fetch(self) -> dict:
+        if isinstance(self.store, VaultStore):
+            if self.store.metadata() is None:
+                return {"schema": 1, "status": "vault_enrollment_required", "items": [], "fetched_at": 0}
+            if not self.store.unlocked():
+                return {"schema": 1, "status": "vault_locked", "items": [], "fetched_at": 0}
         state = self.store.read()
         if state is None:
             return {"schema": 1, "status": "setup_required", "items": [], "fetched_at": 0}
@@ -419,10 +456,19 @@ class Snapshot:
         self.source, self.interval = source, interval
         self.lock = threading.Lock()
         self.stop = threading.Event()
+        self.refresh = threading.Event()
         self.value = {"schema": 1, "status": "setup_required", "items": [], "fetched_at": 0}
 
     def read(self) -> dict:
         with self.lock:
+            store = getattr(self.source, "store", None)
+            if isinstance(store, VaultStore):
+                if store.metadata() is None:
+                    return {"schema": 1, "status": "vault_enrollment_required", "items": [], "fetched_at": 0}
+                if not store.unlocked():
+                    return {"schema": 1, "status": "vault_locked", "items": [], "fetched_at": 0}
+            if isinstance(store, VaultStore) and str(self.value.get("status", "")).startswith("vault_"):
+                return {"schema": 1, "status": "setup_required" if not (store.directory / "apple-state.enc").exists() else "vault_unlocking", "items": [], "fetched_at": 0}
             return dict(self.value)
 
     def run(self) -> None:
@@ -432,13 +478,16 @@ class Snapshot:
             while not self.stop.is_set():
                 try:
                     value = loop.run_until_complete(self.source.fetch())
+                except VaultLocked:
+                    value = {"schema": 1, "status": "vault_locked", "items": [], "fetched_at": 0}
                 except Exception:
                     # No tracebacks, server responses, usernames or tokens in HTTP/log output.
                     value = self.read()
                     value["status"] = "mac_error"
                 with self.lock:
                     self.value = value
-                self.stop.wait(self.interval)
+                self.refresh.wait(self.interval)
+                self.refresh.clear()
         finally:
             loop.close()
 
@@ -447,6 +496,8 @@ class BridgeServer(ThreadingHTTPServer):
     daemon_threads = True
     def __init__(self, address, snapshot: Snapshot, token_hash: str, directory: Path | None = None):
         self.directory = directory
+        self.vault = getattr(getattr(snapshot, "source", None), "store", None)
+        if not isinstance(self.vault, VaultStore): self.vault = None
         self.snapshot, self.token_hash = snapshot, token_hash
         super().__init__(address, BridgeHandler)
         self.rate_lock = threading.Lock()
@@ -487,6 +538,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 hashlib.sha256(token.encode()).hexdigest(), self.server.token_hash):
             self.reply(401, {"error": "unauthorized"})
             return
+        if self.path == "/v1/vault/challenge" and self.server.vault is not None:
+            try: self.reply(200, self.server.vault.challenge())
+            except Exception: self.reply(409, {"error": "vault_unavailable"})
+            return
         if self.path != "/v1/items":
             self.reply(404, {"error": "not_found"})
             return
@@ -503,6 +558,37 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.reply(200, self.server.snapshot.read())
 
     def do_POST(self):
+        if self.path.startswith("/v1/vault/") and self.server.vault is not None:
+            header = self.headers.get("Authorization", "")
+            token = header.removeprefix("Bearer ") if header.startswith("Bearer ") else ""
+            if len(token) != 43 or not hmac.compare_digest(hashlib.sha256(token.encode()).hexdigest(), self.server.token_hash):
+                self.reply(401, {"error": "unauthorized"}); return
+            try:
+                if self.headers.get("Transfer-Encoding"): raise ValueError()
+                length = int(self.headers.get("Content-Length", "0"))
+                if length < 0 or length > 4096: raise ValueError()
+                data = json.loads(self.rfile.read(length)) if length else {}
+                vault = self.server.vault
+                if self.path == "/v1/vault/enroll":
+                    public = unb64(data["public_key"]); android_public(public)
+                    fingerprint = hashlib.sha256(public).hexdigest()
+                    if vault.metadata() is not None:
+                        if vault.metadata()["android_fingerprint"] != fingerprint: raise ValueError()
+                        self.reply(200, {"status": "enrolled"}); return
+                    if data.get("security_level") not in ("tee", "strongbox"): raise ValueError()
+                    atomic_private(self.server.directory / "pending-android-key.json", json.dumps({
+                        "public_key": b64(public), "fingerprint": fingerprint,
+                        "reported_security_level": data["security_level"]}).encode())
+                    self.reply(200, {"status": "approval_needed"})
+                elif self.path == "/v1/vault/unlock":
+                    vault.unlock(data["request_id"], unb64(data["key"]))
+                    self.server.snapshot.refresh.set()
+                    self.reply(200, {"status": "unlocked", "lease_seconds": 1800})
+                elif self.path == "/v1/vault/lock":
+                    vault.lock(); self.server.snapshot.refresh.set(); self.reply(200, {"status": "locked"})
+                else: self.reply(404, {"error": "not_found"})
+            except Exception: self.reply(409, {"error": "vault_request_rejected"})
+            return
         if self.path == "/v1/pair/confirm" and self.server.directory is not None:
             if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
                 self.reply(400, {"error": "invalid_request"})
@@ -573,7 +659,10 @@ async def setup(directory: Path) -> None:
     from exporter import icloud
     from findmy import FindMyAccessory
     from findmy.reports.anisette import LocalAnisetteProvider
-    store = SecureStore(directory)
+    store = VaultStore(directory)
+    if store.metadata() is None:
+        raise VaultLocked("Enroll the Android vault key first")
+    store._key()  # Require current Android approval before collecting Apple inputs.
     previous = store.read()
     if previous is not None:
         from findmy import AsyncAppleAccount
@@ -657,7 +746,9 @@ def main() -> None:
             raise SystemExit(1)
     else:
         config = json.loads((args.state / "server.json").read_text())
-        source = AppleSource(SecureStore(args.state))
+        store = VaultStore(args.state, allow_borrow=False)
+        lease = LocalVaultLease(store)
+        source = AppleSource(store)
         snapshot = Snapshot(source)
         server = BridgeServer((config["host"], config["port"]), snapshot, config["token_hash"], args.state)
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -678,6 +769,7 @@ def main() -> None:
             server.server_close()
             local_ui.shutdown()
             local_ui.server_close()
+            lease.close()
 
 
 if __name__ == "__main__":

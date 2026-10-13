@@ -418,4 +418,12 @@ Wenn Apple die Anfrage lediglich abgelehnt hat, lohnt es sich, zu warten und es 
     <string name="bridge_scan_prompt">Scanne den Kopplungscode auf deinem eigenen Mac</string>
     <string name="bridge_invitation_invalid">Dieser Kopplungscode ist ungültig oder abgelaufen. Öffne pair-phone.command auf deinem Mac für einen neuen Code.</string>
     <string name="bridge_pairing_failed">Die Kopplung wurde nicht abgeschlossen. Prüfe Tailscale auf beiden Geräten, erstelle einen neuen Mac-QR-Code und versuche es erneut.</string>
+    <string name="vault_enroll">Android-gesicherten Tresor aktivieren</string>
+    <string name="vault_unlock">Mac-Tresor entsperren</string>
+    <string name="vault_lock">Mac-Tresor sperren</string>
+    <string name="vault_enrollment_required">Aktiviere den Hardware-Schlüssel dieses Telefons und bestätige seinen Fingerabdruck im Mac-Fenster.</string>
+    <string name="vault_approval_pending">Vergleiche diesen Fingerabdruck mit dem Mac-Fenster und bestätige ihn dort. Tippe dann auf Mac-Tresor entsperren.</string>
+    <string name="vault_locked">Der Mac-Tresor ist gesperrt. Authentifiziere dich auf diesem Telefon, um ihn für 30 Minuten zu entsperren.</string>
+    <string name="vault_auth_title">Mac-Tresor-Entsperrung erlauben</string>
+    <string name="vault_error">Die Tresoranfrage ist fehlgeschlagen. Prüfe das Mac-Fenster. Ein Hardware-Schlüssel, Android 12 oder neuer und eine Bildschirmsperre sind erforderlich.</string>
 </resources>

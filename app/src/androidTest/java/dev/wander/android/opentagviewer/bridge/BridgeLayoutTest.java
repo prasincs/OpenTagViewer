@@ -27,7 +27,7 @@ public class BridgeLayoutTest {
             Context context=new ContextThemeWrapper(base.createConfigurationContext(config),R.style.Theme_OpenTagViewer);
             InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{
                 View view=LayoutInflater.from(context).inflate(R.layout.activity_mac_bridge,null,false);
-                for(int id:new int[]{R.id.bridge_scan,R.id.bridge_import,R.id.bridge_connect,R.id.bridge_pairing,R.id.bridge_direct,R.id.bridge_status})assertNotNull(view.findViewById(id));
+                for(int id:new int[]{R.id.vault_enroll,R.id.vault_unlock,R.id.vault_lock,R.id.bridge_scan,R.id.bridge_import,R.id.bridge_connect,R.id.bridge_pairing,R.id.bridge_direct,R.id.bridge_status})assertNotNull(view.findViewById(id));
                 view.measure(View.MeasureSpec.makeMeasureSpec(1080,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(1800,View.MeasureSpec.EXACTLY));
                 view.layout(0,0,1080,1800);
                 assertTrue(view.findViewById(R.id.bridge_connect).getHeight()>0);
@@ -39,4 +39,23 @@ public class BridgeLayoutTest {
             });
         }
     }
+    @Test public void vaultControlsAreVisibleAndUsableInBothThemes() throws Exception{
+        Context base=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        for(boolean dark:new boolean[]{false,true}){
+            Configuration cfg=new Configuration(base.getResources().getConfiguration());
+            cfg.uiMode=(cfg.uiMode&~Configuration.UI_MODE_NIGHT_MASK)|(dark?Configuration.UI_MODE_NIGHT_YES:Configuration.UI_MODE_NIGHT_NO);
+            Context context=new ContextThemeWrapper(base.createConfigurationContext(cfg),R.style.Theme_OpenTagViewer);
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{
+                View view=LayoutInflater.from(context).inflate(R.layout.activity_mac_bridge,null,false);
+                view.findViewById(R.id.bridge_setup).setVisibility(View.GONE);view.findViewById(R.id.bridge_dashboard).setVisibility(View.VISIBLE);
+                view.findViewById(R.id.bridge_map).setVisibility(View.GONE);((TextView)view.findViewById(R.id.bridge_status)).setText(R.string.vault_locked);
+                view.measure(View.MeasureSpec.makeMeasureSpec(1080,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(1800,View.MeasureSpec.EXACTLY));view.layout(0,0,1080,1800);
+                for(int id:new int[]{R.id.vault_enroll,R.id.vault_unlock,R.id.vault_lock}){View button=view.findViewById(id);assertTrue(button.getHeight()>0);assertEquals(View.VISIBLE,button.getVisibility());}
+                Bitmap bitmap=Bitmap.createBitmap(1080,1800,Bitmap.Config.ARGB_8888);view.draw(new Canvas(bitmap));
+                String target=InstrumentationRegistry.getArguments().getString("additionalTestOutputDir");
+                if(target!=null)try(FileOutputStream out=new FileOutputStream(new File(target,"vault-controls-"+(dark?"dark":"light")+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}catch(Exception e){throw new AssertionError(e);}
+            });
+        }
+    }
+
 }

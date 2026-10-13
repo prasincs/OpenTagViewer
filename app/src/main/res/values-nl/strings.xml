@@ -418,4 +418,12 @@ Als Apple het verzoek simpelweg weigerde, is even wachten en opnieuw proberen he
     <string name="bridge_scan_prompt">Scan de verbindingscode op je eigen Mac</string>
     <string name="bridge_invitation_invalid">Deze code is ongeldig of verlopen. Open pair-phone.command op je Mac voor een nieuwe code.</string>
     <string name="bridge_pairing_failed">Verbinden is niet voltooid. Controleer Tailscale op beide apparaten, maak een nieuwe QR-code op je Mac en probeer opnieuw.</string>
+    <string name="vault_enroll">Kluis met Android-goedkeuring activeren</string>
+    <string name="vault_unlock">Mac-kluis ontgrendelen</string>
+    <string name="vault_lock">Mac-kluis vergrendelen</string>
+    <string name="vault_enrollment_required">Activeer de hardwaresleutel van deze telefoon en keur de vingerafdruk goed in het Mac-venster.</string>
+    <string name="vault_approval_pending">Vergelijk deze vingerafdruk met het Mac-venster en keur hem daar goed. Ontgrendel daarna de Mac-kluis.</string>
+    <string name="vault_locked">De Mac-kluis is vergrendeld. Verifieer je identiteit op deze telefoon om hem 30 minuten te ontgrendelen.</string>
+    <string name="vault_auth_title">Ontgrendelen van Mac-kluis toestaan</string>
+    <string name="vault_error">De kluisaanvraag is mislukt. Controleer het Mac-venster. Een hardwaresleutel, Android 12 of nieuwer en een schermvergrendeling zijn vereist.</string>
 </resources>

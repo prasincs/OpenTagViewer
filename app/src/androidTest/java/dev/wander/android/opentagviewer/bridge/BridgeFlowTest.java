@@ -120,4 +120,62 @@ public class BridgeFlowTest {
         try{assertNull(new BridgePreferences(InstrumentationRegistry.getInstrumentation().getTargetContext()).read());}catch(Exception e){throw new AssertionError(e);}
     }
 
+    @Test public void hardwareKeyFailureCannotEnrollAndShowsError(){
+        BridgeDependencies.vaultKey=()->new AndroidVaultKey(){@Override public Info prepare(android.content.Context context){throw new IllegalStateException("Synthetic unsupported hardware");}};
+        BridgeDependencies.client=()->new BridgeClient(){@Override public Snapshot fetch(BridgeConnection c){return new Snapshot("vault_enrollment_required",List.of());}};
+        onView(withId(R.id.bridge_pairing)).perform(replaceText(CODE),closeSoftKeyboard());onView(withId(R.id.bridge_connect)).perform(click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.vault_enrollment_required))));
+        onView(withId(R.id.vault_enroll)).perform(scrollTo(),click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.vault_error))));
+        assertFalse(Python.isStarted());
+    }
+    @Test public void deniedPhoneAuthenticationNeverSendsVaultUnlock() throws Exception{
+        java.security.KeyPairGenerator generator=java.security.KeyPairGenerator.getInstance("RSA");generator.initialize(2048);
+        AndroidVaultKey.Info info=new AndroidVaultKey.Info(generator.generateKeyPair().getPublic().getEncoded(),"tee");
+        AtomicInteger unlocks=new AtomicInteger();
+        BridgeDependencies.vaultKey=()->new AndroidVaultKey(){
+            @Override public Info prepare(android.content.Context context){return info;}
+            @Override public android.os.CancellationSignal authenticate(androidx.appcompat.app.AppCompatActivity a,Runnable approved,Runnable denied){denied.run();return new android.os.CancellationSignal();}
+        };
+        BridgeDependencies.client=()->new BridgeClient(){
+            @Override public Snapshot fetch(BridgeConnection c){return new Snapshot("vault_locked",List.of());}
+            @Override public com.fasterxml.jackson.databind.JsonNode vault(BridgeConnection c,String action,com.fasterxml.jackson.databind.JsonNode body){
+                if(action.equals("unlock"))unlocks.incrementAndGet();
+                com.fasterxml.jackson.databind.node.ObjectNode node=new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+                node.put("version",2);node.put("request_id","r".repeat(43));node.put("wrapped_key",android.util.Base64.encodeToString(new byte[256],android.util.Base64.NO_WRAP));
+                node.put("android_fingerprint",info.fingerprint);node.put("expires_at",System.currentTimeMillis()/1000+60);return node;
+            }
+        };
+        onView(withId(R.id.bridge_pairing)).perform(replaceText(CODE),closeSoftKeyboard());onView(withId(R.id.bridge_connect)).perform(click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.vault_locked))));
+        onView(withId(R.id.vault_unlock)).perform(scrollTo(),click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.vault_error))));
+        assertEquals(0,unlocks.get());assertFalse(Python.isStarted());
+    }
+
+    @Test public void approvedPhoneAuthenticationUnlocksAndRefreshes() throws Exception{
+        java.security.KeyPairGenerator gen=java.security.KeyPairGenerator.getInstance("RSA");gen.initialize(2048);
+        AndroidVaultKey.Info info=new AndroidVaultKey.Info(gen.generateKeyPair().getPublic().getEncoded(),"tee");
+        AtomicInteger unlocks=new AtomicInteger();
+        BridgeDependencies.vaultKey=()->new AndroidVaultKey(){
+            @Override public Info prepare(android.content.Context c){return info;}
+            @Override public byte[] unwrap(byte[] raw){return new byte[32];}
+            @Override public android.os.CancellationSignal authenticate(androidx.appcompat.app.AppCompatActivity a,Runnable yes,Runnable no){yes.run();return new android.os.CancellationSignal();}
+        };
+        BridgeDependencies.client=()->new BridgeClient(){
+            @Override public Snapshot fetch(BridgeConnection c){return new Snapshot(unlocks.get()==0?"vault_locked":"setup_required",List.of());}
+            @Override public com.fasterxml.jackson.databind.JsonNode vault(BridgeConnection c,String action,com.fasterxml.jackson.databind.JsonNode body){
+                com.fasterxml.jackson.databind.node.ObjectNode n=new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+                if(action.equals("unlock")){assertEquals("r".repeat(43),body.path("request_id").asText());unlocks.incrementAndGet();n.put("status","unlocked");return n;}
+                n.put("version",2);n.put("request_id","r".repeat(43));n.put("wrapped_key",android.util.Base64.encodeToString(new byte[256],android.util.Base64.NO_WRAP));
+                n.put("android_fingerprint",info.fingerprint);n.put("expires_at",System.currentTimeMillis()/1000+60);return n;
+            }
+        };
+        onView(withId(R.id.bridge_pairing)).perform(replaceText(CODE),closeSoftKeyboard());onView(withId(R.id.bridge_connect)).perform(click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.vault_locked))));
+        onView(withId(R.id.vault_unlock)).perform(scrollTo(),click());
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_setup_required))));
+        assertEquals(1,unlocks.get());assertFalse(Python.isStarted());
+    }
+
 }

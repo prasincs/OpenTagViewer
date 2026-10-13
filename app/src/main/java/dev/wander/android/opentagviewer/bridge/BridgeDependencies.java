@@ -6,7 +6,8 @@ import java.util.function.Supplier;
 
 /** Fakes are installed by device tests; real mode has no Apple or Anisette dependency. */
 public final class BridgeDependencies {
+    public static Supplier<AndroidVaultKey> vaultKey=AndroidVaultKey::new;
     public static Supplier<BridgeClient> client=BridgeClient::new;
     public static Supplier<IMapProvider> map=OsmMapProvider::new;
-    public static void reset(){client=BridgeClient::new;map=OsmMapProvider::new;}
+    public static void reset(){vaultKey=AndroidVaultKey::new;client=BridgeClient::new;map=OsmMapProvider::new;}
 }

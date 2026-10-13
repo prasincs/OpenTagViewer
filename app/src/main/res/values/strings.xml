@@ -451,4 +451,12 @@ If Apple simply refused the request, waiting and trying again is worth doing fir
     <string name="bridge_scan_prompt">Scan the pairing code displayed on your own Mac</string>
     <string name="bridge_invitation_invalid">This pairing code is invalid or expired. Open pair-phone.command on your Mac for a new code.</string>
     <string name="bridge_pairing_failed">Pairing did not finish. Check Tailscale on both devices, then create a new Mac QR code and try again.</string>
+    <string name="vault_enroll">Enable Android-gated vault</string>
+    <string name="vault_unlock">Unlock Mac vault</string>
+    <string name="vault_lock">Lock Mac vault</string>
+    <string name="vault_enrollment_required">Enable this phone’s hardware vault key, then approve its fingerprint in the Mac window.</string>
+    <string name="vault_approval_pending">Compare this fingerprint with the Mac window and approve it there. Then tap Unlock Mac vault.</string>
+    <string name="vault_locked">Mac vault locked. Authenticate on this phone to unlock it for 30 minutes.</string>
+    <string name="vault_auth_title">Authorize Mac vault unlock</string>
+    <string name="vault_error">Vault request failed. Check the Mac window. A hardware key, Android 12 or later, and a phone screen lock are required.</string>
 </resources>

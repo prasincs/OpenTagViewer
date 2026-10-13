@@ -51,6 +51,13 @@ try{
  await waitText('Waiting for your phone…');await command('apple-failed');
  await waitText('Apple sign-in failed. Retry setup-on-mac.command locally on the Mac.');
  assert.equal(await page.locator('#qr svg').count(),0);
+ const fifth=await command('new');await page.goto(first.origin+'/#'+fifth.token);await waitText('Waiting for your phone…');
+ await command('vault-pending');await page.locator('#vault-approve').waitFor({state:'visible'});
+ assert.match(await page.locator('#vault-fingerprint').textContent(),/^[a-f0-9]{64}$/);
+ await page.locator('#vault-approve').click();
+ await page.waitForFunction(()=>document.getElementById('vault-status').textContent.includes('Vault locked.'),null,{timeout:12000});
+ assert.equal(await page.locator('#vault-approve').isVisible(),false);
+ if(shots)await page.screenshot({path:shots+'/mac-vault-locked.png'});
  assert.equal(external,false,'UI contacted an external server');
  console.log('Browser checks passed: renewal, claim, negative result, cancellation, confirmation, Apple readiness; no external requests.');
 }finally{

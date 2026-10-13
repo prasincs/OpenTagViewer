@@ -7,6 +7,7 @@ from pathlib import Path
 import plistlib
 import subprocess
 import sys
+import time
 
 LABEL = "dev.homefind.macbridge"
 
@@ -29,6 +30,8 @@ def main():
                         str(project / "mac-bridge/requirements.txt")], check=True)
     if not python.is_file():
         parser.error("Bridge environment missing; rerun without --skip-dependencies")
+    helper = project / ".toolchain/vault-helper"
+    subprocess.run(["swiftc", "-O", str(project / "mac-bridge/SecureVault.swift"), "-o", str(helper)], check=True)
     bridge = project / "mac-bridge/bridge.py"
     state = Path.home() / "Library/Application Support/HomeFindBridge"
     existing = state / "server.json"
@@ -61,7 +64,14 @@ def main():
         plistlib.dump(config, out)
     temporary.chmod(0o600)
     temporary.replace(target)
-    subprocess.run(["launchctl", "bootstrap", domain, str(target)], check=True)
+    for attempt in range(5):
+        started = subprocess.run(["launchctl", "bootstrap", domain, str(target)], capture_output=True)
+        if started.returncode == 0:
+            break
+        if started.returncode != 5 or attempt == 4:
+            raise RuntimeError("Mac service bootstrap failed; check the local LaunchAgent status")
+        time.sleep(0.5)  # bootout can return before launchd releases the old service label.
+
     print("Mac bridge installed. Keep this checkout at its current path.")
     print("Complete Apple setup locally with mac-bridge/setup-on-mac.command.")
     print("Open mac-bridge/pair-phone.command, then tap Scan Mac QR code on Android.")

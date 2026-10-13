@@ -1,7 +1,7 @@
 Home Find Mac bridge
 
 Mode: selected AirTag locations are fetched/decrypted on your Mac. Android
-connects using a separate read-only token and pinned HTTPS certificate. It does
+connects using a separate bridge token and pinned HTTPS certificate. It does
 not receive your Apple password, Apple session, device passcode or tag keys.
 The map retrieves OpenStreetMap tiles; tile providers can infer the viewed area.
 This is an unofficial FindMy.py bridge, not an Apple-supported API.
@@ -14,7 +14,20 @@ Persistent service:
 - The Mac must be awake, online and connected to Tailscale. Android must be on
   the same authorized tailnet. Nothing is opened to the public internet here.
 
-Finish Apple setup on the Mac:
+Android approval before Apple setup:
+1. On the paired phone, tap Enable Android-gated vault. Android 12+, a secure
+   screen lock, and StrongBox or TEE-backed RSA are required. Software keys
+   are rejected. The app checks Android KeyInfo locally; the server does not
+   perform remote hardware attestation.
+2. Compare the full key fingerprint displayed on the phone with the Mac's
+   live pairing window. Approve that key on the Mac. A location token alone
+   cannot approve or replace the vault recipient.
+3. On the phone tap Unlock Mac vault and authenticate with a strong biometric
+   or the phone's screen-lock credential. This grants a 30-minute RAM lease.
+4. Each Mac service startup begins locked. After timeout or Lock Mac vault,
+   approve again on Android. No automatic approval or software-key fallback.
+
+Finish Apple setup on the Mac after the vault is unlocked:
 1. Open setup-on-mac.command in this folder.
 2. Type the owning Apple account and password in that LOCAL terminal, answer
    2FA, choose an existing Apple device and type its unlock passcode.
@@ -28,8 +41,12 @@ keychain peer. It can register an authentication client on your Apple account,
 using the exporter identity with a serial beginning 0PENTAGX. Keep that identity
 if you want the session to keep working. The original Apple password/device
 passcode are not persisted. Selected tag keys and the Apple session are stored
-in apple-state.enc with AES-256-GCM; the random wrapping key is stored through
-macOS's native login Keychain backend. When Apple expires/revokes the session,
+in apple-state.enc with AES-256-GCM. Its random data key is wrapped first for
+Android's hardware RSA key (OAEP SHA-256 with MGF1-SHA1, Android-compatible),
+then for a dedicated Mac Secure Enclave P-256 agreement key (HKDF-SHA256 and
+AES-GCM). The Secure Enclave unwraps only the Android-encrypted layer; it
+cannot recover the data key without Android. No Mac-only data key is stored
+in Keychain. The existing SSH Secure Enclave identity is not used or changed. When Apple expires/revokes the session,
 rerun setup locally. New tags must be selected locally in a new setup run.
 Do not confuse the bridge TLS certificate/private key with your AirTag keys.
 Those transport files and the pairing file are private files (0600 in a 0700
@@ -128,3 +145,43 @@ Verification:
 JVM and managed UI commands are indexed in CONTRIBUTING.md.
 Mac credential onboarding and real tag retrieval need human inputs and hardware;
 passing synthetic tests must not be reported as live Apple/AirTag verification.
+
+Two-device vault details:
+- vault.json contains only public recipient metadata, a key-check HMAC and a
+  doubly wrapped data key. vault-se-keyref is an opaque Mac-bound Secure Enclave
+  reference, not exportable private key material. Both are owner-only files.
+- The data key is generated transiently, wrapped, then its retained buffer is
+  overwritten. Initial enrollment does not leave the vault unlocked.
+- GET /v1/vault/challenge supplies an Android-encrypted key and a 60-second
+  single-use nonce. POST /v1/vault/unlock validates that nonce and the unwrapped
+  random key, retaining it only in process memory for 30 minutes. RSA private
+  operations need Android authentication; the private RSA key never leaves
+  Android secure hardware. The transient data key crosses pinned HTTPS.
+- The bearer token permits a pending enrollment request, an encrypted challenge
+  and locking; it cannot approve enrollment, replace an enrolled recipient or
+  decrypt saved data. Enrollment approval is loopback-only with the separate
+  Mac UI capability and an exact fingerprint check.
+- Local Apple setup borrows an already approved key through a 0600 Unix socket,
+  protected by a 0700 directory and native peer-UID checks. It rechecks the
+  daemon for each operation and does not retain a separate setup lease key.
+- Lock/expiry returns empty location snapshots, invalidates unlock challenges
+  and overwrites the retained data-key buffer. Managed runtimes and native
+  libraries can retain temporary copies: this protects saved vault files,
+  not plaintext on a compromised Mac while unlocked. Native Apple Find My
+  and any older direct-login phone data have independent security boundaries.
+- Legacy Mac-only encrypted state is refused by this mode; enrollment does not
+  overwrite it. This Mac had no saved Apple state when the mode was enabled.
+  Existing legacy users need an explicit migration/recovery procedure.
+- Losing/resetting the Android hardware key makes this saved vault unreadable.
+  Recovery means reenrolling a new key and obtaining fresh data from Apple;
+  there is no Mac-only recovery key. Stop the service before deliberately
+  resetting vault files. Old backups retain their original security properties.
+
+Verification additions:
+mac-bridge/tests/test_vault.py covers wrong-device rejection, restart/timeout,
+no legacy fallback, local lease revocation and a real Secure Enclave roundtrip
+using synthetic Android keys/data. test_vault_api.py covers token permissions,
+fingerprint approval, challenge replay and hiding locked snapshots. Android
+BridgeFlowTest covers denied/approved authentication and unsupported hardware;
+BridgeLayoutTest renders vault controls in both themes. Real phone hardware
+and biometric approval must be confirmed on the user's device.

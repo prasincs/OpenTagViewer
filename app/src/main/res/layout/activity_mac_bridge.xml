@@ -36,6 +36,12 @@
                     style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
                     android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/bridge_disconnect" />
             </LinearLayout>
+            <com.google.android.material.button.MaterialButton android:id="@+id/vault_enroll"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/vault_enroll" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/vault_unlock"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/vault_unlock" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/vault_lock"
+                style="?attr/materialButtonOutlinedStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/vault_lock" />
             <FrameLayout android:id="@+id/bridge_map" android:layout_width="match_parent" android:layout_height="260dp" />
             <LinearLayout android:id="@+id/bridge_items" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="vertical" android:layout_marginTop="12dp" />

@@ -111,6 +111,37 @@ public class BridgeClient {
             return paired;
         }catch(Exception e){throw new BridgeException(Failure.PROTOCOL);}
     }
+    public JsonNode vault(BridgeConnection config,String action,JsonNode body)throws BridgeException {
+        if(!List.of("challenge","enroll","unlock","lock").contains(action))throw new BridgeException(Failure.PROTOCOL);
+        HttpsURLConnection connection=null;
+        try{
+            SSLContext tls=SSLContext.getInstance("TLS");tls.init(null,new TrustManager[]{trustManager(config.certificateSha256)},null);
+            connection=(HttpsURLConnection)new URL(config.endpoint+"/v1/vault/"+action).openConnection();
+            connection.setSSLSocketFactory(tls.getSocketFactory());connection.setInstanceFollowRedirects(false);
+            connection.setUseCaches(false);connection.setConnectTimeout(8000);connection.setReadTimeout(10000);
+            connection.setRequestProperty("Authorization","Bearer "+config.token);
+            if(!action.equals("challenge")){
+                byte[] raw=new ObjectMapper().writeValueAsBytes(body==null?new ObjectMapper().createObjectNode():body);
+                if(raw.length>4096)throw new BridgeException(Failure.PROTOCOL);
+                connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setFixedLengthStreamingMode(raw.length);
+                connection.setRequestProperty("Content-Type","application/json");
+                try(java.io.OutputStream out=connection.getOutputStream()){out.write(raw);}
+            }
+            int status=connection.getResponseCode();
+            if(status==401||status==403)throw new BridgeException(Failure.AUTH);
+            if(status!=200)throw new BridgeException(Failure.PROTOCOL);
+            try(InputStream in=connection.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
+                byte[] buffer=new byte[1024];int count;
+                while((count=in.read(buffer))!=-1){if(out.size()+count>8192)throw new BridgeException(Failure.PROTOCOL);out.write(buffer,0,count);}
+                JsonNode result=new ObjectMapper().readTree(out.toByteArray());
+                if(result==null||!result.isObject())throw new BridgeException(Failure.PROTOCOL);
+                return result;
+            }
+        }catch(BridgeException e){throw e;}
+        catch(SSLException e){throw new BridgeException(Failure.CERTIFICATE);}
+        catch(Exception e){throw new BridgeException(Failure.CONNECTION);}
+        finally{if(connection!=null)connection.disconnect();}
+    }
     public Snapshot fetch(BridgeConnection config) throws BridgeException {
         HttpsURLConnection connection=null;
         try {
@@ -145,9 +176,10 @@ public class BridgeClient {
             if(raw.length()>256*1024) throw new IllegalArgumentException();
             JsonNode root=new ObjectMapper().readTree(raw);
             String status=root.path("status").asText();
-            if(root.path("schema").asInt()!=1 || !List.of("ready","setup_required","mac_error").contains(status)
+            if(root.path("schema").asInt()!=1 || !List.of("ready","setup_required","mac_error","vault_enrollment_required","vault_locked","vault_unlocking").contains(status)
                     || !root.path("items").isArray() || root.path("items").size()>500)
                 throw new IllegalArgumentException();
+            if(status.startsWith("vault_")&&root.path("items").size()!=0)throw new IllegalArgumentException();
             List<Item> items=new ArrayList<>();
             for(JsonNode item:root.path("items")) {
                 String id=item.path("id").asText(),name=item.path("name").asText();

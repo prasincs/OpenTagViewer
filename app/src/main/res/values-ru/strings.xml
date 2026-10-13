@@ -418,4 +418,12 @@
     <string name="bridge_scan_prompt">Сканируйте код подключения на своём Mac</string>
     <string name="bridge_invitation_invalid">Код недействителен или истёк. Откройте pair-phone.command на Mac для нового кода.</string>
     <string name="bridge_pairing_failed">Подключение не завершено. Проверьте Tailscale на обоих устройствах, создайте новый QR-код на Mac и повторите попытку.</string>
+    <string name="vault_enroll">Включить защиту хранилища через Android</string>
+    <string name="vault_unlock">Разблокировать хранилище Mac</string>
+    <string name="vault_lock">Заблокировать хранилище Mac</string>
+    <string name="vault_enrollment_required">Включите аппаратный ключ телефона, затем подтвердите его отпечаток в окне Mac.</string>
+    <string name="vault_approval_pending">Сравните отпечаток с окном Mac и подтвердите его там. Затем разблокируйте хранилище Mac.</string>
+    <string name="vault_locked">Хранилище Mac заблокировано. Подтвердите личность на телефоне для разблокировки на 30 минут.</string>
+    <string name="vault_auth_title">Разрешить разблокировку Mac</string>
+    <string name="vault_error">Запрос не выполнен. Проверьте окно Mac. Нужны аппаратный ключ, Android 12 или новее и блокировка экрана телефона.</string>
 </resources>

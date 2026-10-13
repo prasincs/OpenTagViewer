@@ -2,6 +2,11 @@ package dev.wander.android.opentagviewer.bridge;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.util.Base64;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.DateUtils;
@@ -35,6 +40,7 @@ public class MacBridgeActivity extends AppCompatActivity {
     private TextInputEditText pairing;
     private LinearLayout items;
     private IMapProvider map;
+    private CancellationSignal vaultAuthentication;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private boolean resumed=false,loading=false;
@@ -109,6 +115,9 @@ public class MacBridgeActivity extends AppCompatActivity {
         findViewById(R.id.bridge_connect).setOnClickListener(v->connect());
         findViewById(R.id.bridge_import).setOnClickListener(v->importFile.launch(new String[]{"application/json","text/plain"}));
         findViewById(R.id.bridge_refresh).setOnClickListener(v->refresh(false));
+        findViewById(R.id.vault_enroll).setOnClickListener(v->vaultAction("enroll"));
+        findViewById(R.id.vault_unlock).setOnClickListener(v->vaultAction("unlock"));
+        findViewById(R.id.vault_lock).setOnClickListener(v->vaultAction("lock"));
         findViewById(R.id.bridge_disconnect).setOnClickListener(v->{
             generation++;loading=false;config=null;preferences.forget();handler.removeCallbacks(poll);items.removeAllViews();
             if(map!=null)map.clear();findViewById(R.id.bridge_dashboard).setVisibility(View.GONE);
@@ -152,7 +161,10 @@ public class MacBridgeActivity extends AppCompatActivity {
     }
     private void schedule(){if(resumed&&config!=null)handler.postDelayed(poll,60000);}
     private void render(BridgeClient.Snapshot snapshot){
-        status.setText("setup_required".equals(snapshot.status)?R.string.bridge_setup_required:
+        status.setText("vault_enrollment_required".equals(snapshot.status)?R.string.vault_enrollment_required:
+            "vault_locked".equals(snapshot.status)?R.string.vault_locked:
+            "vault_unlocking".equals(snapshot.status)?R.string.bridge_loading:
+            "setup_required".equals(snapshot.status)?R.string.bridge_setup_required:
             "mac_error".equals(snapshot.status)?R.string.bridge_mac_error:R.string.bridge_connected);
         items.removeAllViews();
         boolean located=snapshot.items.stream().anyMatch(item->item.latitude!=null);
@@ -174,6 +186,49 @@ public class MacBridgeActivity extends AppCompatActivity {
             items.addView(card);
         }
     }
+    private void vaultAction(String action){
+        if(config==null||loading)return;
+        loading=true;handler.removeCallbacks(poll);status.setText(R.string.bridge_loading);
+        int requestGeneration=generation;BridgeConnection connection=config;
+        AndroidVaultKey key=BridgeDependencies.vaultKey.get();BridgeClient client=BridgeDependencies.client.get();
+        worker.submit(()->{
+            try{
+                if(action.equals("lock")){
+                    client.vault(connection,"lock",null);handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;loading=false;refresh(false);});return;
+                }
+                AndroidVaultKey.Info info=key.prepare(this);
+                if(action.equals("enroll")){
+                    ObjectNode body=new ObjectMapper().createObjectNode();body.put("public_key",Base64.encodeToString(info.publicKey,Base64.NO_WRAP));body.put("security_level",info.securityLevel);
+                    JsonNode result=client.vault(connection,"enroll",body);
+                    handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                        loading=false;if("enrolled".equals(result.path("status").asText()))refresh(false);
+                        else status.setText(getString(R.string.vault_approval_pending)+"\n"+info.fingerprint);});return;
+                }
+                JsonNode challenge=client.vault(connection,"challenge",null);
+                String requestId=challenge.path("request_id").asText();
+                long expires=challenge.path("expires_at").asLong();
+                byte[] wrapped=Base64.decode(challenge.path("wrapped_key").asText(),Base64.NO_WRAP);
+                if(challenge.path("version").asInt()!=2||!requestId.matches("[A-Za-z0-9_-]{43}")||wrapped.length!=256||
+                   !info.fingerprint.equals(challenge.path("android_fingerprint").asText())||expires<=System.currentTimeMillis()/1000||expires-System.currentTimeMillis()/1000>90)
+                    throw new IllegalArgumentException();
+                handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                    vaultAuthentication=key.authenticate(this,()->{if(isDestroyed()||generation!=requestGeneration)return;worker.submit(()->{
+                        byte[] secret=null;
+                        try{
+                            secret=key.unwrap(wrapped);ObjectNode body=new ObjectMapper().createObjectNode();
+                            body.put("request_id",requestId);body.put("key",Base64.encodeToString(secret,Base64.NO_WRAP));
+                            client.vault(connection,"unlock",body);
+                            handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;loading=false;refresh(false);});
+                        }catch(Exception e){vaultError(requestGeneration);}
+                        finally{if(secret!=null)java.util.Arrays.fill(secret,(byte)0);}
+                    });},()->vaultError(requestGeneration));
+                });
+            }catch(Exception e){vaultError(requestGeneration);}
+        });
+    }
+    private void vaultError(int expectedGeneration){
+        handler.post(()->{if(isDestroyed()||generation!=expectedGeneration)return;loading=false;status.setText(R.string.vault_error);});
+    }
     private void drawMarkers(BridgeClient.Snapshot snapshot){
         if(map==null)return;map.clear();boolean first=true;
         for(BridgeClient.Item item:snapshot.items)if(item.latitude!=null){
@@ -183,5 +238,5 @@ public class MacBridgeActivity extends AppCompatActivity {
     }
     @Override public void onResume(){super.onResume();resumed=true;if(map!=null)map.onResume();refresh(false);}
     @Override public void onPause(){resumed=false;handler.removeCallbacks(poll);if(map!=null)map.onPause();super.onPause();}
-    @Override public void onDestroy(){generation++;handler.removeCallbacksAndMessages(null);worker.shutdownNow();if(map!=null)map.onDestroy();super.onDestroy();}
+    @Override public void onDestroy(){if(vaultAuthentication!=null)vaultAuthentication.cancel();generation++;handler.removeCallbacksAndMessages(null);worker.shutdownNow();if(map!=null)map.onDestroy();super.onDestroy();}
 }

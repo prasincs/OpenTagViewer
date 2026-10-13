@@ -418,4 +418,12 @@ Apple이 요청을 거부한 것뿐이라면 잠시 기다렸다가 다시 시�
     <string name="bridge_scan_prompt">본인의 Mac에 표시된 연결 코드를 스캔하세요</string>
     <string name="bridge_invitation_invalid">연결 코드가 잘못되었거나 만료되었습니다. Mac에서 pair-phone.command를 열어 새 코드를 받으세요.</string>
     <string name="bridge_pairing_failed">연결을 완료하지 못했습니다. 두 기기의 Tailscale을 확인한 다음 Mac에서 새 QR 코드를 만들어 다시 시도하세요.</string>
+    <string name="vault_enroll">Android 승인 보관함 활성화</string>
+    <string name="vault_unlock">Mac 보관함 잠금 해제</string>
+    <string name="vault_lock">Mac 보관함 잠금</string>
+    <string name="vault_enrollment_required">이 휴대전화의 하드웨어 키를 활성화한 다음 Mac 창에서 키 지문을 승인하세요.</string>
+    <string name="vault_approval_pending">Mac 창의 지문과 비교하여 승인한 다음 Mac 보관함 잠금 해제를 누르세요.</string>
+    <string name="vault_locked">Mac 보관함이 잠겨 있습니다. 이 휴대전화에서 인증하면 30분간 잠금이 해제됩니다.</string>
+    <string name="vault_auth_title">Mac 보관함 잠금 해제 승인</string>
+    <string name="vault_error">보관함 요청에 실패했습니다. Mac 창을 확인하세요. 하드웨어 키, Android 12 이상, 휴대전화 화면 잠금이 필요합니다.</string>
 </resources>

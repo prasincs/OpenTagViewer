@@ -418,4 +418,12 @@
     <string name="bridge_scan_prompt">扫描你自己的 Mac 上显示的配对码</string>
     <string name="bridge_invitation_invalid">配对码无效或已过期。请在 Mac 上打开 pair-phone.command 获取新码。</string>
     <string name="bridge_pairing_failed">配对未完成。请检查两台设备上的 Tailscale，然后在 Mac 上生成新二维码并重试。</string>
+    <string name="vault_enroll">启用 Android 授权保险库</string>
+    <string name="vault_unlock">解锁 Mac 保险库</string>
+    <string name="vault_lock">锁定 Mac 保险库</string>
+    <string name="vault_enrollment_required">启用此手机的硬件密钥，然后在 Mac 窗口中批准其指纹。</string>
+    <string name="vault_approval_pending">与 Mac 窗口中的指纹比较并批准，然后点击解锁 Mac 保险库。</string>
+    <string name="vault_locked">Mac 保险库已锁定。在此手机上认证后，可解锁 30 分钟。</string>
+    <string name="vault_auth_title">授权解锁 Mac 保险库</string>
+    <string name="vault_error">保险库请求失败。请检查 Mac 窗口。需要硬件密钥、Android 12 或更新版本及手机屏幕锁。</string>
 </resources>

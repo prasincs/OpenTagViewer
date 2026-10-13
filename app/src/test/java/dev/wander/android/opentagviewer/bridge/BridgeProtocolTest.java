@@ -30,4 +30,11 @@ public class BridgeProtocolTest {
             try{BridgeClient.parseSnapshot(raw);fail();}catch(BridgeClient.BridgeException expected){assertEquals(BridgeClient.Failure.PROTOCOL,expected.failure);}
         }
     }
+    @org.junit.Test public void lockedVaultStatusCanNeverCarryLocationRows() throws Exception {
+        BridgeClient.Snapshot snapshot=BridgeClient.parseSnapshot("{\"schema\":1,\"status\":\"vault_locked\",\"items\":[]}");
+        org.junit.Assert.assertEquals("vault_locked",snapshot.status);org.junit.Assert.assertTrue(snapshot.items.isEmpty());
+        try{BridgeClient.parseSnapshot("{\"schema\":1,\"status\":\"vault_locked\",\"items\":[{\"id\":\"x\",\"name\":\"unexpected\",\"location\":null}]}");org.junit.Assert.fail();}
+        catch(BridgeClient.BridgeException expected){org.junit.Assert.assertEquals(BridgeClient.Failure.PROTOCOL,expected.failure);}
+    }
+
 }

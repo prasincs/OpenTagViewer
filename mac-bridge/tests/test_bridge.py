@@ -19,7 +19,7 @@ from types import SimpleNamespace
 spec=importlib.util.spec_from_file_location("home_bridge",Path(__file__).resolve().parents[1]/"bridge.py")
 bridge=importlib.util.module_from_spec(spec);spec.loader.exec_module(bridge)
 
-class MemoryKeyStore(bridge.SecureStore):
+class MemoryKeyStore(bridge.LegacySecureStore):
     def _key(self,create=False):return b"k"*32
 
 class VaultTests(unittest.TestCase):
