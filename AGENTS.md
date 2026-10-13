@@ -1095,3 +1095,5 @@ and response/import bounds. No automatic fallback to Apple login on the phone.
 Bridge UI tests require `-PbridgeUiTests=true`; never ship that flag.
 
 QR pairing: create invitations ONLY from the local Mac command, expire them in five minutes, and consume them once under the cross-process lock. Do not put the permanent location token into the QR. `/v1/pair` accepts only a header secret over certificate-pinned HTTPS and exports only the existing bridge connection. The scanner stays private in `${bridgeProcess}`; disable barcode image saving. Never accept certificate pins from discovery responses.
+
+Live pairing UI must stay loopback-only with Host/Origin checks and a separate local capability. Never expose its QR/controller on the Tailscale API. Refresh only while the authorized window is active; missing heartbeat cancels pending authorization. QR redemption is confirming, not success: require a bounded receipt after the phone saves its credential. Cancellation, phone rejection and acknowledgement timeout must stop QR renewal. Browser tests use synthetic data and a separate browser profile, never the user's profile or Apple state.

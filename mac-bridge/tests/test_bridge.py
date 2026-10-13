@@ -111,16 +111,6 @@ class PairingTests(ApiFixture, unittest.TestCase):
         req=urllib.request.Request(self.url+path,method="POST",data=data)
         req.add_header("Authorization","Pairing "+secret)
         return urllib.request.urlopen(req,context=self.context,timeout=5)
-    def test_local_pairing_page_is_private_and_has_no_long_term_token(self):
-        with patch('subprocess.run') as opened:
-            bridge.show_invitation(Path(self.tmp.name))
-        page=Path(self.tmp.name)/'pairing.html'
-        raw=page.read_text()
-        self.assertIn('<svg',raw)
-        self.assertIn('Content-Security-Policy',raw)
-        self.assertNotIn(self.pair['token'],raw)
-        self.assertEqual(page.stat().st_mode&0o777,0o600)
-        opened.assert_called_once_with(['open',str(page)],check=True)
     def test_qr_is_temporary_and_never_contains_long_term_token(self):
         invite=self.invitation()
         self.assertNotEqual(invite['secret'],self.pair['token'])
@@ -166,5 +156,35 @@ class PairingTests(ApiFixture, unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as err:self.post(invite['secret'])
         self.assertEqual(err.exception.code,429)
         self.assertIsNotNone(bridge.redeem_invitation(Path(self.tmp.name),invite['secret']))
+
+
+class ConfirmationTests(ApiFixture, unittest.TestCase):
+    def claim_flow(self):
+        self.ui_token=bridge.start_pairing_flow(Path(self.tmp.name))
+        code=bridge.pairing_flow_status(Path(self.tmp.name),self.ui_token)['code'].split(':',1)[1]
+        invite=json.loads(base64.urlsafe_b64decode(code+'='*((-len(code))%4)))
+        req=urllib.request.Request(self.url+'/v1/pair',method='POST',headers={'Authorization':'Pairing '+invite['secret']})
+        with urllib.request.urlopen(req,context=self.context) as response:return json.load(response)
+    def confirm(self,receipt,result='connected',data=None):
+        req=urllib.request.Request(self.url+'/v1/pair/confirm',method='POST',data=data,
+            headers={'Authorization':'Receipt '+receipt,'X-Pairing-Result':result})
+        return urllib.request.urlopen(req,context=self.context)
+    def test_positive_and_negative_receipts_drive_terminal_results(self):
+        for result,status in [('connected','paired'),('failed','failed')]:
+            claim=self.claim_flow()
+            self.assertIn('pairing_receipt',claim)
+            self.assertEqual(bridge.pairing_flow_status(Path(self.tmp.name),self.ui_token)['status'],'confirming')
+            self.confirm(claim['pairing_receipt'],result).close()
+            self.assertEqual(bridge.pairing_flow_status(Path(self.tmp.name),self.ui_token)['status'],status)
+    def test_wrong_receipt_cannot_confirm_and_payload_is_rejected(self):
+        claim=self.claim_flow()
+        for receipt,result,data,expected in [('x'*43,'connected',None,401),(claim['pairing_receipt'],'unknown',None,401),(claim['pairing_receipt'],'connected',b'{}',400)]:
+            with self.assertRaises(urllib.error.HTTPError) as error:self.confirm(receipt,result,data)
+            self.assertEqual(error.exception.code,expected)
+        self.assertEqual(bridge.pairing_flow_status(Path(self.tmp.name),self.ui_token)['status'],'confirming')
+    def test_cancelled_flow_rejects_late_confirmation(self):
+        claim=self.claim_flow();bridge.pairing_flow_status(Path(self.tmp.name),self.ui_token,cancel=True)
+        with self.assertRaises(urllib.error.HTTPError) as error:self.confirm(claim['pairing_receipt'])
+        self.assertEqual(error.exception.code,401)
 
 if __name__=='__main__':unittest.main()

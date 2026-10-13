@@ -109,4 +109,15 @@ public class BridgeFlowTest {
         assertFalse(scanner.exported);assertEquals(launcher.processName,scanner.processName);
     }
 
+    @Test public void confirmationFailureRemovesSavedCredentialAndShowsFailure(){
+        BridgeDependencies.client=()->new BridgeClient(){
+            @Override public BridgeConnection pair(BridgeInvitation i){try{return BridgeConnection.parse(CODE);}catch(Exception e){throw new AssertionError(e);}}
+            @Override public Snapshot fetch(BridgeConnection c){return new Snapshot("setup_required",List.of());}
+            @Override public void confirm(BridgeConnection c,boolean success)throws BridgeException{throw new BridgeException(Failure.AUTH);}
+        };
+        scenario.onActivity(a->a.acceptInvitation(invitation(System.currentTimeMillis()/1000+300)));
+        Eventually.check(()->onView(withId(R.id.bridge_status)).check(matches(withText(R.string.bridge_pairing_failed))));
+        try{assertNull(new BridgePreferences(InstrumentationRegistry.getInstrumentation().getTargetContext()).read());}catch(Exception e){throw new AssertionError(e);}
+    }
+
 }

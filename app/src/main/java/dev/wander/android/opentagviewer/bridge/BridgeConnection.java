@@ -12,8 +12,9 @@ public final class BridgeConnection {
     public final String endpoint;
     public final String certificateSha256;
     public final String token;
-    private BridgeConnection(String endpoint, String pin, String token) {
-        this.endpoint = endpoint; this.certificateSha256 = pin; this.token = token;
+    public final String pairingReceipt;
+    private BridgeConnection(String endpoint, String pin, String token, String receipt) {
+        this.endpoint = endpoint; this.certificateSha256 = pin; this.token = token; this.pairingReceipt = receipt;
     }
     public static BridgeConnection parse(String value) throws Exception {
         if (value == null || value.getBytes(StandardCharsets.UTF_8).length > 8192)
@@ -31,8 +32,11 @@ public final class BridgeConnection {
         String token = node.path("token").asText();
         if (!pin.matches("[a-fA-F0-9]{64}") || !token.matches("[A-Za-z0-9_-]{43}"))
             throw new IllegalArgumentException("Invalid Mac connection credential");
+        String receipt = node.path("pairing_receipt").asText("");
+        if (!receipt.isEmpty() && !receipt.matches("[A-Za-z0-9_-]{43}"))
+            throw new IllegalArgumentException("Invalid pairing receipt");
         String endpoint = uri.toString().replaceAll("/$", "");
-        return new BridgeConnection(endpoint, pin.toLowerCase(java.util.Locale.ROOT), token);
+        return new BridgeConnection(endpoint, pin.toLowerCase(java.util.Locale.ROOT), token, receipt);
     }
     public String encode() throws Exception {
         Map<String,Object> value = new LinkedHashMap<>();

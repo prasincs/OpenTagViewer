@@ -33,4 +33,13 @@ public class BridgeInvitationTest {
             try{BridgeClient.parsePairingResponse(i,changed);fail();}catch(BridgeClient.BridgeException e){assertEquals(BridgeClient.Failure.PROTOCOL,e.failure);}
         }
     }
+    @Test public void confirmationReceiptIsValidatedAndNeverPersisted() throws Exception{
+        BridgeInvitation invite=BridgeInvitation.parse(code(1300,"https://127.0.0.1:8766"),1000);
+        String response=invite.transport.encode().replace("}",",\"pairing_receipt\":\""+"r".repeat(43)+"\"}");
+        BridgeConnection c=BridgeClient.parsePairingResponse(invite,response);
+        assertEquals("r".repeat(43),c.pairingReceipt);
+        assertFalse(c.encode().contains("pairing_receipt"));
+        try{BridgeConnection.parse(response.replace("r".repeat(43),"bad"));fail();}catch(Exception expected){}
+    }
+
 }

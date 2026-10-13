@@ -62,20 +62,36 @@ public class MacBridgeActivity extends AppCompatActivity {
         loading=true;int requestGeneration=++generation;handler.removeCallbacks(poll);
         status.setText(R.string.bridge_loading);
         worker.submit(()->{
+            BridgeClient client=BridgeDependencies.client.get();
+            BridgeConnection claimed=null;
             try{
-                BridgeClient client=BridgeDependencies.client.get();
-                BridgeConnection paired=client.pair(invitation);
-                BridgeClient.Snapshot snapshot=client.fetch(paired);
+                claimed=client.pair(invitation);
+                BridgeClient.Snapshot snapshot=client.fetch(claimed);
+                BridgeConnection paired=claimed;
+                handler.post(()->{if(isDestroyed())return;
+                    if(generation!=requestGeneration){
+                        worker.submit(()->{try{client.confirm(paired,false);}catch(Exception ignored){}});return;}
+                    try{preferences.save(paired);}catch(Exception e){
+                        loading=false;status.setText(R.string.bridge_invalid);
+                        worker.submit(()->{try{client.confirm(paired,false);}catch(Exception ignored){}});return;}
+                    worker.submit(()->{
+                        try{client.confirm(paired,true);
+                            handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                                loading=false;config=paired;pairing.setText("");showDashboard();render(snapshot);schedule();});
+                        }catch(Exception e){handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
+                            loading=false;preferences.forget();status.setText(R.string.bridge_pairing_failed);});}
+                    });
+                });
+            }catch(Exception e){
+                if(claimed!=null)try{client.confirm(claimed,false);}catch(Exception ignored){}
                 handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
                     loading=false;
-                    try{preferences.save(paired);}catch(Exception e){status.setText(R.string.bridge_invalid);return;}
-                    config=paired;pairing.setText("");showDashboard();render(snapshot);schedule();});
-            }catch(Exception e){handler.post(()->{if(isDestroyed()||generation!=requestGeneration)return;
-                loading=false;
-                status.setText(e instanceof BridgeClient.BridgeException&&((BridgeClient.BridgeException)e).failure==BridgeClient.Failure.CERTIFICATE?
-                    R.string.bridge_certificate_error:R.string.bridge_pairing_failed);});}
+                    status.setText(e instanceof BridgeClient.BridgeException&&((BridgeClient.BridgeException)e).failure==BridgeClient.Failure.CERTIFICATE?
+                        R.string.bridge_certificate_error:R.string.bridge_pairing_failed);});
+            }
         });
     }
+
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);

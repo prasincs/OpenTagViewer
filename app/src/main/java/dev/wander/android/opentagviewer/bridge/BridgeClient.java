@@ -84,6 +84,25 @@ public class BridgeClient {
         catch(Exception e){throw new BridgeException(Failure.CONNECTION);}
         finally{if(connection!=null)connection.disconnect();}
     }
+    /** Confirm only after the phone verified the API and saved its bridge credential. */
+    public void confirm(BridgeConnection config,boolean success) throws BridgeException {
+        if(config.pairingReceipt.isEmpty())return; // Legacy file/one-shot invitation.
+        HttpsURLConnection connection=null;
+        try{
+            SSLContext tls=SSLContext.getInstance("TLS");
+            tls.init(null,new TrustManager[]{trustManager(config.certificateSha256)},null);
+            connection=(HttpsURLConnection)new URL(config.endpoint+"/v1/pair/confirm").openConnection();
+            connection.setSSLSocketFactory(tls.getSocketFactory());connection.setInstanceFollowRedirects(false);
+            connection.setUseCaches(false);connection.setConnectTimeout(8000);connection.setReadTimeout(10000);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Authorization","Receipt "+config.pairingReceipt);
+            connection.setRequestProperty("X-Pairing-Result",success?"connected":"failed");
+            if(connection.getResponseCode()!=200)throw new BridgeException(Failure.AUTH);
+        }catch(BridgeException e){throw e;}
+        catch(SSLException e){throw new BridgeException(Failure.CERTIFICATE);}
+        catch(Exception e){throw new BridgeException(Failure.CONNECTION);}
+        finally{if(connection!=null)connection.disconnect();}
+    }
     public static BridgeConnection parsePairingResponse(BridgeInvitation invitation,String raw) throws BridgeException {
         try{
             BridgeConnection paired=BridgeConnection.parse(raw);

@@ -38,22 +38,79 @@ def pairing_lock(directory: Path):
         yield
 
 
-def make_invitation(directory: Path, now: float | None = None) -> str:
+def _new_invitation_locked(directory: Path, now: float, flow_id: str | None = None) -> tuple[str, int]:
     connection = json.loads((directory / "connection.json").read_text())
     secret = secrets.token_urlsafe(32)
-    expires = int((time.time() if now is None else now) + PAIRING_TTL)
+    expires = int(now + PAIRING_TTL)
     invitation = {"pairing_version": 1, "endpoint": connection["endpoint"],
                   "certificate_sha256": connection["certificate_sha256"],
                   "secret": secret, "expires_at": expires}
-    with pairing_lock(directory):
-        atomic_private(directory / "pairing-invitation.json", json.dumps({
-            "secret_hash": hashlib.sha256(secret.encode()).hexdigest(),
-            "expires_at": expires}).encode())
-    return "homefind-pair:" + base64.urlsafe_b64encode(
+    atomic_private(directory / "pairing-invitation.json", json.dumps({
+        "secret_hash": hashlib.sha256(secret.encode()).hexdigest(),
+        "expires_at": expires, "flow_id": flow_id}).encode())
+    code = "homefind-pair:" + base64.urlsafe_b64encode(
         json.dumps(invitation, separators=(",", ":")).encode()).decode().rstrip("=")
+    return code, expires
+
+
+def make_invitation(directory: Path, now: float | None = None) -> str:
+    with pairing_lock(directory):
+        flow_path = directory / "pairing-flow.json"
+        if flow_path.exists():
+            flow = json.loads(flow_path.read_text())
+            flow.update(status="cancelled", reason="replaced", code=None)
+            atomic_private(flow_path, json.dumps(flow).encode())
+        return _new_invitation_locked(directory, time.time() if now is None else now)[0]
+
+
+def start_pairing_flow(directory: Path, now: float | None = None) -> str:
+    now = time.time() if now is None else now
+    ui_token = secrets.token_urlsafe(32)
+    ui_hash = hashlib.sha256(ui_token.encode()).hexdigest()
+    with pairing_lock(directory):
+        code, expires = _new_invitation_locked(directory, now, ui_hash)
+        flow = {"ui_token": ui_token, "ui_hash": ui_hash, "status": "waiting", "code": code,
+                "expires_at": expires, "last_seen": now}
+        atomic_private(directory / "pairing-flow.json", json.dumps(flow).encode())
+    return ui_token
+
+
+def _cancel_invitation_locked(directory: Path, flow: dict) -> None:
+    path = directory / "pairing-invitation.json"
+    if path.exists() and json.loads(path.read_text()).get("flow_id") == flow["ui_hash"]:
+        path.unlink()
+    flow["code"] = None
+
+
+def pairing_flow_status(directory: Path, ui_token: str, now: float | None = None,
+                        cancel: bool = False) -> dict | None:
+    now = time.time() if now is None else now
+    if len(ui_token) != 43:
+        return None
+    with pairing_lock(directory):
+        path = directory / "pairing-flow.json"
+        if not path.exists():
+            return None
+        flow = json.loads(path.read_text())
+        if not hmac.compare_digest(flow["ui_hash"], hashlib.sha256(ui_token.encode()).hexdigest()):
+            return None
+        if flow["status"] in ("waiting", "confirming"):
+            if cancel or now - flow["last_seen"] > 120:
+                flow.update(status="cancelled", reason="cancelled" if cancel else "window_closed")
+                _cancel_invitation_locked(directory, flow)
+            elif flow["status"] == "confirming" and now - flow["claimed_at"] >= 120:
+                flow.update(status="failed", reason="confirmation_timeout", code=None)
+            elif flow["status"] == "waiting" and now >= flow["expires_at"]:
+                code, expires = _new_invitation_locked(directory, now, flow["ui_hash"])
+                flow.update(code=code, expires_at=expires)
+        flow["last_seen"] = now
+        atomic_private(path, json.dumps(flow).encode())
+        return {"status": flow["status"], "code": flow.get("code"),
+                "expires_at": flow["expires_at"], "reason": flow.get("reason", "")}
 
 
 def redeem_invitation(directory: Path, secret: str, now: float | None = None) -> dict | None:
+    now = time.time() if now is None else now
     if len(secret) != 43 or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-" for c in secret):
         return None
     with pairing_lock(directory):
@@ -61,39 +118,191 @@ def redeem_invitation(directory: Path, secret: str, now: float | None = None) ->
         if not path.exists():
             return None
         state = json.loads(path.read_text())
-        if (time.time() if now is None else now) >= state["expires_at"]:
+        if now >= state["expires_at"]:
             path.unlink()
             return None
         if not hmac.compare_digest(state["secret_hash"], hashlib.sha256(secret.encode()).hexdigest()):
             return None
         connection = json.loads((directory / "connection.json").read_text())
-        path.unlink()  # Consume under the cross-process lock before returning any credential.
+        flow_path = directory / "pairing-flow.json"
+        if state.get("flow_id") and flow_path.exists():
+            flow = json.loads(flow_path.read_text())
+            if flow["ui_hash"] != state["flow_id"] or flow["status"] != "waiting":
+                return None
+            if now - flow["last_seen"] > 120:
+                flow.update(status="cancelled", reason="window_closed", code=None)
+                atomic_private(flow_path, json.dumps(flow).encode())
+                path.unlink()
+                return None
+            receipt = secrets.token_urlsafe(32)
+            flow.update(status="confirming", claimed_at=now, code=None,
+                        receipt_hash=hashlib.sha256(receipt.encode()).hexdigest())
+            atomic_private(flow_path, json.dumps(flow).encode())
+            connection["pairing_receipt"] = receipt
+        path.unlink()
         return connection
 
 
-def show_invitation(directory: Path) -> None:
+def confirm_pairing(directory: Path, receipt: str, success: bool, now: float | None = None) -> bool:
+    now = time.time() if now is None else now
+    if len(receipt) != 43:
+        return False
+    with pairing_lock(directory):
+        path = directory / "pairing-flow.json"
+        if not path.exists():
+            return False
+        flow = json.loads(path.read_text())
+        if flow["status"] != "confirming" or now - flow["claimed_at"] >= 120:
+            return False
+        if not hmac.compare_digest(flow["receipt_hash"], hashlib.sha256(receipt.encode()).hexdigest()):
+            return False
+        flow.update(status="paired" if success else "failed", reason="" if success else "phone_rejected", code=None)
+        flow.pop("receipt_hash", None)
+        atomic_private(path, json.dumps(flow).encode())
+        return True
+
+
+def render_pairing_qr(code: str) -> str:
     import qrcode
     import qrcode.image.svg
-    import subprocess
-    import html
     import io
-    code = make_invitation(directory)
     image = qrcode.make(code, image_factory=qrcode.image.svg.SvgPathImage,
                         error_correction=qrcode.constants.ERROR_CORRECT_M)
     output = io.BytesIO()
     image.save(output)
-    svg = output.getvalue().decode().split("?>")[-1]
-    endpoint = json.loads((directory / "connection.json").read_text())["endpoint"]
-    page = ('<html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" '
-            'content="default-src &apos;none&apos;; style-src &apos;unsafe-inline&apos;"><title>Pair Home Find</title>'
-            '<style>body{font:20px system-ui;text-align:center;margin:32px}svg{width:440px;max-width:90vw;height:auto}</style>'
-            '</head><body><h1>Connect your Android phone</h1><p>In OpenTagViewer, tap Scan Mac QR code.</p>'
-            + svg + '<p>' + html.escape(endpoint) + '</p><p>Expires in five minutes. Works once.</p>'
-            '<p>Only scan this code into your own phone. Creating it authorizes location access.</p></body></html>')
-    path = directory / "pairing.html"
-    atomic_private(path, page.encode())
-    subprocess.run(["open", str(path)], check=True)
-    print("Opened the private, single-use pairing QR. It expires after five minutes.")
+    return output.getvalue().decode().split("?>")[-1]
+
+
+def show_invitation(directory: Path, reuse: bool = False) -> None:
+    import subprocess
+    from urllib.request import urlopen
+    config = json.loads((directory / "pairing-ui.json").read_text())
+    origin = "http://127.0.0.1:" + str(config["port"])
+    with urlopen(origin + "/health", timeout=3) as response:
+        if json.loads(response.read(1024)).get("service") != "HomeFindPairing":
+            raise RuntimeError("Local pairing service unavailable")
+    flow_path = directory / "pairing-flow.json"
+    token = None
+    if reuse and flow_path.exists():
+        with pairing_lock(directory):
+            flow = json.loads(flow_path.read_text())
+            if flow["status"] == "paired" or (flow["status"] in ("waiting", "confirming")
+                    and time.time() - flow["last_seen"] <= 120
+                    and (flow["status"] != "confirming" or time.time() - flow["claimed_at"] < 120)):
+                token = flow["ui_token"]
+    if token is None:
+        token = start_pairing_flow(directory)
+    result = subprocess.run(["open", origin + "/#" + token], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if result.returncode != 0:
+        raise RuntimeError("Could not open the local pairing window")
+    print("Opened live Mac pairing. Codes refresh until the phone confirms or you cancel.")
+
+
+def record_apple_setup(directory: Path, status: str) -> None:
+    if status not in ("running", "ready", "failed"):
+        raise ValueError("Invalid local setup status")
+    atomic_private(directory / "apple-setup-status.json", json.dumps({
+        "status": status, "updated_at": int(time.time())}).encode())
+
+
+def apple_setup_status(directory: Path, snapshot) -> str:
+    path = directory / "apple-setup-status.json"
+    if path.exists():
+        try:
+            status = json.loads(path.read_text())["status"]
+            if status in ("running", "failed"):
+                return "setup_running" if status == "running" else "setup_failed"
+        except (OSError, ValueError, KeyError):
+            return "mac_error"
+    return snapshot.read()["status"]
+
+
+class LocalPairingServer(ThreadingHTTPServer):
+    daemon_threads = True
+    def __init__(self, directory: Path, snapshot, address=("127.0.0.1", 0)):
+        self.directory, self.snapshot = directory, snapshot
+        super().__init__(address, LocalPairingHandler)
+        self.origin = "http://127.0.0.1:" + str(self.server_port)
+        self.qr_lock = threading.Lock()
+        self.qr_code, self.qr_svg = None, None
+
+    def get_request(self):
+        conn, address = super().get_request()
+        conn.settimeout(5)
+        return conn, address
+
+    def svg(self, code):
+        if code is None:
+            return None
+        with self.qr_lock:
+            if code != self.qr_code:
+                self.qr_svg, self.qr_code = render_pairing_qr(code), code
+            return self.qr_svg
+
+
+class LocalPairingHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+    server_version = "HomeFindPairing"
+    sys_version = ""
+
+    def log_message(self, *args):
+        pass
+
+    def reply(self, status, raw, content_type="application/json"):
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def valid_origin(self):
+        # Reject DNS rebinding and cross-site control; no CORS credentials are exposed.
+        return (self.headers.get("Host") == "127.0.0.1:" + str(self.server.server_port)
+                and self.headers.get("Origin", self.server.origin) == self.server.origin)
+
+    def control(self, cancel=False):
+        header = self.headers.get("Authorization", "")
+        token = header.removeprefix("Setup ") if header.startswith("Setup ") else ""
+        state = pairing_flow_status(self.server.directory, token, cancel=cancel)
+        if state is None:
+            self.reply(401, b'{"error":"unavailable"}')
+            return
+        apple_status = apple_setup_status(self.server.directory, self.server.snapshot)
+        if apple_status == "setup_failed" and state["status"] in ("waiting", "confirming"):
+            state = pairing_flow_status(self.server.directory, token, cancel=True)
+        state["qr_svg"] = self.server.svg(state.pop("code"))
+        state["apple_status"] = apple_status
+        self.reply(200, json.dumps(state).encode())
+
+    def do_GET(self):
+        if not self.valid_origin():
+            self.reply(403, b'{}')
+            return
+        if self.path == "/health":
+            self.reply(200, b'{"service":"HomeFindPairing"}')
+        elif self.path == "/v1/pairing-status":
+            self.control()
+        elif self.path in ("/", "/pairing-ui.js", "/pairing-ui.css"):
+            filename, mime = {"/": ("pairing-ui.html", "text/html; charset=utf-8"),
+                "/pairing-ui.js": ("pairing-ui.js", "text/javascript"),
+                "/pairing-ui.css": ("pairing-ui.css", "text/css")}[self.path]
+            self.reply(200, (Path(__file__).parent / filename).read_bytes(), mime)
+        else:
+            self.reply(404, b'{}')
+
+    def do_POST(self):
+        if not self.valid_origin():
+            self.reply(403, b'{}')
+        elif self.path != "/v1/pairing-cancel":
+            self.reply(404, b'{}')
+        elif self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+            self.reply(400, b'{}')
+        else:
+            self.control(cancel=True)
 
 
 def atomic_private(path: Path, data: bytes) -> None:
@@ -294,6 +503,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.reply(200, self.server.snapshot.read())
 
     def do_POST(self):
+        if self.path == "/v1/pair/confirm" and self.server.directory is not None:
+            if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+                self.reply(400, {"error": "invalid_request"})
+                return
+            header = self.headers.get("Authorization", "")
+            receipt = header.removeprefix("Receipt ") if header.startswith("Receipt ") else ""
+            result = self.headers.get("X-Pairing-Result")
+            if result not in ("connected", "failed") or not confirm_pairing(self.server.directory, receipt, result == "connected"):
+                self.reply(401, {"error": "confirmation_unavailable"})
+            else:
+                self.reply(200, {"status": "confirmed"})
+            return
         if self.path != "/v1/pair" or self.server.directory is None:
             self.reply(405, {"error": "read_only"})
             return
@@ -409,6 +630,7 @@ def main() -> None:
     parser.add_argument("command", choices=["pair", "setup", "serve", "invite"])
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--host")
+    parser.add_argument("--reuse", action="store_true", help="Reuse an active local pairing window")
     parser.add_argument("--port", type=int, default=8766)
     args = parser.parse_args()
     if args.command == "pair":
@@ -419,11 +641,18 @@ def main() -> None:
         create_pairing(args.state, args.host, args.port)
         print("Created private connection file:", args.state / "connection.json")
     elif args.command == "invite":
-        show_invitation(args.state)
+        try:
+            show_invitation(args.state, reuse=args.reuse)
+        except Exception:
+            print("Could not open pairing. Start/reinstall the Mac bridge service and try again.")
+            raise SystemExit(1)
     elif args.command == "setup":
+        record_apple_setup(args.state, "running")
         try:
             asyncio.run(setup(args.state))
-        except Exception as error:
+            record_apple_setup(args.state, "ready")
+        except (Exception, KeyboardInterrupt) as error:
+            record_apple_setup(args.state, "failed")
             print("Setup did not complete:", type(error).__name__, "— check the local Apple setup and try again.")
             raise SystemExit(1)
     else:
@@ -435,6 +664,10 @@ def main() -> None:
         tls.minimum_version = ssl.TLSVersion.TLSv1_2
         tls.load_cert_chain(args.state / "server.pem", args.state / "server-key.pem")
         server.tls_context = tls
+        local_ui = LocalPairingServer(args.state, snapshot)
+        atomic_private(args.state / "pairing-ui.json", json.dumps({"port": local_ui.server_port}).encode())
+        ui_thread = threading.Thread(target=local_ui.serve_forever, daemon=True)
+        ui_thread.start()
         thread = threading.Thread(target=snapshot.run, daemon=True)
         thread.start()
         print("Read-only Mac bridge is running; Apple setup is performed locally.", flush=True)
@@ -443,6 +676,8 @@ def main() -> None:
         finally:
             snapshot.stop.set()
             server.server_close()
+            local_ui.shutdown()
+            local_ui.server_close()
 
 
 if __name__ == "__main__":

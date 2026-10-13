@@ -38,24 +38,42 @@ folder). A pairing file gives access to locations: do not publish it.
 First-setup pairing (recommended):
 Open mac-bridge/pair-phone.command on your Mac, then tap Scan Mac QR code
 on Android. Camera permission is needed only for scanning. The Mac displays
-its own address and a single-use QR, which expires after five minutes. Both
+a live pairing window and a single-use QR. Each code expires after five minutes,
+and the service replaces it automatically while the window is waiting. Both
 devices need Tailscale connectivity. No connection file transfer is required.
-Successful Apple setup also opens this QR automatically.
+Successful Apple setup reopens the existing pairing window, or creates one.
+Keep the window open: it polls every two seconds and shows waiting, confirming,
+paired, failed or cancelled. After pairing, it also waits for Apple setup to be
+ready (or reports a Mac retrieval error). Local Apple sign-in failure is shown
+as a negative result and cancels pending QR authorization. No Apple password
+or raw authentication error enters the window. No manual refresh is necessary.
 
 Creating the QR locally authorizes access to the selected tags' locations.
 The QR includes endpoint, certificate pin and a random 256-bit temporary secret,
 not the permanent bearer token. The phone verifies certificate/hostname/expiry
 before POST /v1/pair with that secret in its Authorization header. The Mac
 consumes the invitation atomically and returns only the read-only connection
-credential. Wrong guesses do not consume it; attempts are rate limited. Replay,
+credential plus a temporary confirmation receipt. The phone verifies the API,
+saves its credential encrypted, then confirms success. The Mac only reports
+paired after that confirmation. A phone failure sends a negative result; an
+unconfirmed claim times out after two minutes. Wrong guesses do not consume it; attempts are rate limited. Replay,
 expiry and reissued invitations are rejected. An intercepted or photographed
 live QR could authorize the first claimant: show it privately. To cancel an
-unused invitation, delete pairing-invitation.json from the private state folder.
+unused invitation, use Cancel pairing in the window. Closing/inactivating the
+window stops renewal; after two minutes without a heartbeat its pending code
+cannot be claimed. Cancellation after a claim does not independently revoke a
+location token already delivered; it rejects confirmation and the new phone
+build removes its pending credential. Token rotation revokes all copies.
 A new QR invalidates the previous one. After a lost response, generate a new QR.
 The phone stores only the returned connection after a successful location-API
 check. Existing manually imported tokens continue working. This version shares
 the existing location token; revocation still rotates all copies, not one phone.
-The local pairing.html file holds an expiring invitation and stays outside Git.
+The pairing window is served by the persistent bridge on loopback only, at an
+ephemeral 127.0.0.1 port. It checks Host/Origin, requires an independent UI
+capability, disables caching and never returns Apple account state. A private
+pairing-flow.json holds only temporary setup state outside Git. A new window
+invalidates the previous controller/QR/receipt. Pairing needs app version 9 or
+newer for the final confirmation; older builds cannot confirm this live flow.
 
 On Android (manual fallback):
 Open the app, choose Import Mac connection file (or paste its contents), and
@@ -74,7 +92,8 @@ Server API:
 GET /v1/items, Authorization: Bearer <read-only bridge token>.
 Schema 1, status ready/setup_required/mac_error, items with opaque ID/name and
 optional latitude/longitude/report timestamp/accuracy. No key/account-export
-route exists. POST /v1/pair is the only setup exchange; other POSTs are rejected.
+route exists. POST /v1/pair issues a read-only connection; POST /v1/pair/confirm reports the
+phone result using a temporary receipt. Other POSTs are rejected.
 Responses are no-store. Polls and pairing attempts are rate limited.
 The phone does not cache report coordinates in its SQLite tag database.
 
